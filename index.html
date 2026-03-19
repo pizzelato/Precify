@@ -153,34 +153,23 @@ try {
   window._fbDb    = _db;
   window._fbReady = true;
 
-  const handleAuthState = (user) => {
-    window._fbUser = user;
-    if(user){
-      const modal = document.getElementById('auth-modal');
-      if(modal) modal.classList.remove('open');
-      const ui = document.getElementById('user-info');
-      if(ui) ui.textContent = user.email;
-      const bar = document.getElementById('sync-bar');
-      if(bar) bar.style.display = 'flex';
-      if(window.setSyncStatus) window.setSyncStatus('syncing');
-      if(window.startFirestoreListeners) window.startFirestoreListeners(user.uid);
-      else setTimeout(()=>{ if(window.startFirestoreListeners) window.startFirestoreListeners(user.uid); }, 1000);
-    } else {
-      const bar = document.getElementById('sync-bar');
-      if(bar) bar.style.display = 'none';
-      if(window._unsubProducts) window._unsubProducts();
-      if(window._unsubPlatforms) window._unsubPlatforms();
-      // Show auth modal only after app is loaded
-      setTimeout(()=>{
-        const modal = document.getElementById('auth-modal');
-        if(modal) modal.classList.add('open');
-      }, 800);
-    }
-  };
-  onAuthStateChanged(_auth, user => {
-    // Wait for regular scripts to load
-    if(document.readyState === 'complete') handleAuthState(user);
-    else window.addEventListener('load', () => handleAuthState(user));
+  // Aguarda o app carregar antes de processar auth
+  window.addEventListener('load', () => {
+    onAuthStateChanged(_auth, user => {
+      window._fbUser = user;
+      if(user){
+        document.getElementById('auth-modal').classList.remove('open');
+        document.getElementById('user-info').textContent = user.email;
+        document.getElementById('sync-bar').style.display = 'flex';
+        setSyncStatus('syncing');
+        window.startFirestoreListeners(user.uid);
+      } else {
+        document.getElementById('sync-bar').style.display = 'none';
+        document.getElementById('auth-modal').classList.add('open');
+        if(window._unsubProducts) window._unsubProducts();
+        if(window._unsubPlatforms) window._unsubPlatforms();
+      }
+    });
   });
   console.log('✅ Firebase inicializado com sucesso');
 } catch(e){ console.error('❌ Firebase init error:', e); }
@@ -1558,7 +1547,6 @@ function showFbStatus(msg, ok){
 }
 
 // ── SYNC STATUS ───────────────────────────────────────────
-window.setSyncStatus = function(status){ setSyncStatus(status); };
 function setSyncStatus(status){
   const dot  = document.getElementById('sync-dot');
   const text = document.getElementById('sync-text');
