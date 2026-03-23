@@ -1,0 +1,1714 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0"/>
+<title>PreçoCerto — Calculadora Delivery</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Syne:wght@700;800&display=swap" rel="stylesheet"/>
+<script type="module">
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
+import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged, setPersistence, browserLocalPersistence }
+  from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
+import { getFirestore, collection, doc, setDoc, deleteDoc, onSnapshot, writeBatch }
+  from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+import { initializeAppCheck, ReCaptchaV3Provider }
+  from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app-check.js';
+const FB={apiKey:"AIzaSyBrKs_SVZNE0X1ZzpTFfxSMrQWlWhohz4M",authDomain:"precify-app-65a6d.firebaseapp.com",projectId:"precify-app-65a6d",storageBucket:"precify-app-65a6d.firebasestorage.app",messagingSenderId:"500096766230",appId:"1:500096766230:web:a530eb87d2850b661f8037"};
+window.addEventListener('load',async()=>{
+  try{
+    const app=initializeApp(FB),auth=getAuth(app),db=getFirestore(app);
+    window._auth=auth;window._db=db;
+    // Ativar App Check com reCAPTCHA v3
+    initializeAppCheck(app, {
+      provider: new ReCaptchaV3Provider('6LdqOZUsAAAAAGtdkKZPXVKYd1s_gFpgS3dGFTho'),
+      isTokenAutoRefreshEnabled: true
+    });
+    await setPersistence(auth,browserLocalPersistence);
+    onAuthStateChanged(auth,user=>{
+      window._user=user;
+      if(user){
+        document.getElementById('auth-screen').style.display='none';
+        document.getElementById('onboarding').style.display='none';
+        document.getElementById('sync-pill').style.display='flex';
+        document.getElementById('sync-email').textContent=user.email;
+        document.getElementById('user-card').style.display='flex';
+        document.getElementById('cfg-email').textContent=user.email;
+        startL(user.uid);
+        // Rating shown after 3 real calculations
+      } else {
+        // If onboarding not done, show it — NOT the auth screen
+        if(!localStorage.getItem('pc_ob_done')){
+          document.getElementById('auth-screen').style.display='none';
+          document.getElementById('onboarding').style.display='flex';
+        } else {
+          document.getElementById('auth-screen').style.display='flex';
+        }
+        document.getElementById('sync-pill').style.display='none';
+        document.getElementById('user-card').style.display='none';
+      }
+    });
+    window.doLogin=async(email,pass,isReg)=>{
+      try{
+        if(isReg)await createUserWithEmailAndPassword(auth,email,pass);
+        else await signInWithEmailAndPassword(auth,email,pass);
+        document.getElementById('auth-screen').style.display='none';
+      }catch(e){
+        let m='Verifique seus dados.';
+        if(e.code==='auth/email-already-in-use')m='E-mail já cadastrado. Use "Entrar".';
+        if(e.code==='auth/user-not-found'||e.code==='auth/invalid-credential')m='E-mail ou senha incorretos.';
+        if(e.code==='auth/weak-password')m='Senha muito curta. Use pelo menos 6 caracteres.';
+        showAErr(m);
+      }
+    };
+    window.doLogout=()=>signOut(auth);
+    function startL(uid){
+      onSnapshot(collection(db,`users/${uid}/products`),snap=>{if(!snap.empty){products=snap.docs.map(d=>({...d.data(),id:d.id}));renderProds();runSim();}setSyncOk();},()=>setSyncErr());
+      onSnapshot(collection(db,`users/${uid}/platforms`),snap=>{if(!snap.empty){snap.docs.forEach(d=>{const p=platforms.find(x=>x.id===d.id);if(p){p.comm=d.data().comm;p.active=d.data().active;}});renderAll();}setSyncOk();},()=>setSyncErr());
+      onSnapshot(collection(db,`users/${uid}/history`),snap=>{if(!snap.empty){calcHistory=snap.docs.map(d=>({...d.data(),id:d.id})).sort((a,b)=>b.ts-a.ts).slice(0,50);renderHistory();}},()=>{});
+    }
+    window.fbSave=async p=>{if(!window._user)return;setSyncSaving();await setDoc(doc(db,`users/${window._user.uid}/products`,String(p.id)),p);};
+    window.fbDel=async id=>{if(!window._user)return;setSyncSaving();await deleteDoc(doc(db,`users/${window._user.uid}/products`,String(id)));};
+    window.fbSavePlats=async()=>{if(!window._user)return;setSyncSaving();const b=writeBatch(db);platforms.forEach(p=>b.set(doc(db,`users/${window._user.uid}/platforms`,p.id),{comm:p.comm,active:p.active}));await b.commit();};
+    window.fbSaveHistory=async h=>{if(!window._user)return;await setDoc(doc(db,`users/${window._user.uid}/history`,String(h.id)),h);};
+    window.fbDelHistory=async id=>{if(!window._user)return;await deleteDoc(doc(db,`users/${window._user.uid}/history`,String(id)));};
+  }catch(e){console.error(e);}
+});
+</script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --primary:#1B4FFF;--pd:#0D2ECC;--pl:#EEF2FF;
+  --accent:#00D68F;--ad:#00B87A;--al:#E6FBF4;
+  --danger:#F03E3E;--dl:#FFF0F0;
+  --warn:#F59F00;--wl:#FFF8E1;
+  --bg:#F7F8FC;--surface:#FFF;--s2:#F0F2F8;
+  --text:#111827;--t2:#374151;--muted:#6B7280;
+  --border:#E5E7EB;--b2:#D1D5DB;
+  --sh:0 1px 3px rgba(0,0,0,0.08),0 1px 2px rgba(0,0,0,0.06);
+  --shm:0 4px 16px rgba(0,0,0,0.1);--shl:0 10px 40px rgba(0,0,0,0.14);
+  --r:14px;--rs:9px;
+}
+body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;max-width:430px;margin:0 auto;overflow-x:hidden;-webkit-font-smoothing:antialiased;}
+
+/* AUTH */
+#auth-screen{position:fixed;inset:0;z-index:900;background:linear-gradient(145deg,#0A1628,#0D2240);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:28px;}
+.alogo{width:76px;height:76px;margin-bottom:14px;}
+.aname{font-family:'Syne',sans-serif;font-size:28px;font-weight:800;color:white;letter-spacing:-1px;margin-bottom:4px;}
+.aname span{color:var(--accent);}
+.asub{font-size:13px;color:rgba(255,255,255,0.4);margin-bottom:26px;text-align:center;line-height:1.5;}
+.acard{background:white;border-radius:20px;padding:20px;width:100%;max-width:370px;}
+.atabs{display:flex;background:var(--bg);border-radius:10px;padding:3px;margin-bottom:14px;gap:3px;}
+.atab{flex:1;padding:8px;border:none;background:transparent;border-radius:8px;cursor:pointer;font-family:'Inter',sans-serif;font-size:13px;font-weight:600;color:var(--muted);}
+.atab.on{background:white;color:var(--text);box-shadow:var(--sh);}
+.aerr{background:var(--dl);border:1px solid rgba(240,62,62,0.2);border-radius:8px;padding:10px 12px;font-size:13px;color:var(--danger);font-weight:500;margin-bottom:10px;display:none;}
+.afld{margin-bottom:11px;}
+.albl{font-size:11px;font-weight:600;letter-spacing:0.05em;text-transform:uppercase;color:var(--muted);margin-bottom:5px;display:block;}
+.ainp{width:100%;padding:11px 14px;border:1.5px solid var(--border);border-radius:9px;font-family:'Inter',sans-serif;font-size:15px;outline:none;background:var(--bg);color:var(--text);}
+.ainp:focus{border-color:var(--primary);background:white;}
+.abtn{width:100%;padding:13px;background:linear-gradient(135deg,var(--primary),var(--pd));border:none;border-radius:10px;color:white;font-family:'Inter',sans-serif;font-size:15px;font-weight:600;cursor:pointer;margin-bottom:10px;}
+.abtn:disabled{opacity:0.6;}
+.askip{width:100%;padding:8px;background:none;border:none;font-size:12px;color:rgba(255,255,255,0.3);cursor:pointer;font-family:'Inter',sans-serif;text-decoration:underline;margin-top:10px;}
+
+/* ONBOARDING */
+#onboarding{position:fixed;inset:0;z-index:950;background:white;display:none;flex-direction:column;align-items:center;justify-content:center;padding:28px;text-align:center;overflow-y:auto;}
+.ob-icon{width:86px;height:86px;margin:0 auto 16px;}
+.ob-title{font-family:'Syne',sans-serif;font-size:24px;font-weight:800;letter-spacing:-0.5px;margin-bottom:8px;}
+.ob-desc{font-size:14px;color:var(--muted);line-height:1.6;margin-bottom:22px;max-width:300px;}
+.ob-steps{display:flex;flex-direction:column;gap:9px;margin-bottom:24px;width:100%;max-width:340px;}
+.ob-step{display:flex;align-items:center;gap:13px;background:var(--bg);border-radius:12px;padding:12px 14px;text-align:left;}
+.ob-si{width:38px;height:38px;border-radius:9px;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:20px;}
+.ob-st strong{display:block;font-size:14px;font-weight:600;margin-bottom:1px;}
+.ob-st span{font-size:12px;color:var(--muted);}
+.ob-btn{width:100%;max-width:340px;padding:14px;background:linear-gradient(135deg,var(--primary),var(--pd));border:none;border-radius:12px;color:white;font-family:'Inter',sans-serif;font-size:15px;font-weight:600;cursor:pointer;}
+
+/* AD TOP */
+.ad-top{width:100%;background:#0D1B3E;padding:9px 15px;display:flex;align-items:center;gap:10px;cursor:pointer;position:relative;}
+.ad-top-lbl{position:absolute;top:4px;left:14px;font-size:8px;color:rgba(255,255,255,0.28);font-weight:700;letter-spacing:0.12em;text-transform:uppercase;}
+.ad-top-icon{width:32px;height:32px;border-radius:8px;background:linear-gradient(135deg,#FF6B35,#FFA057);display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:6px;font-size:15px;}
+.ad-top-body{flex:1;padding-top:6px;}
+.ad-top-title{font-size:11px;font-weight:600;color:white;}
+.ad-top-sub{font-size:10px;color:rgba(255,255,255,0.4);}
+.ad-top-cta{background:var(--accent);color:white;font-size:11px;font-weight:700;padding:6px 11px;border-radius:99px;white-space:nowrap;flex-shrink:0;margin-top:6px;}
+
+/* HEADER */
+.hdr{background:var(--surface);padding:12px 16px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);position:sticky;top:0;z-index:100;box-shadow:var(--sh);}
+.logo{display:flex;align-items:center;gap:9px;}
+.logo-icon{width:32px;height:32px;}
+.logo-name{font-family:'Syne',sans-serif;font-size:18px;font-weight:800;letter-spacing:-0.5px;}
+.logo-name span{color:var(--primary);}
+.hright{display:flex;align-items:center;gap:7px;}
+.sync-pill{display:none;align-items:center;gap:5px;background:var(--al);border:1px solid rgba(0,214,143,0.25);border-radius:99px;padding:4px 9px;font-size:10px;font-weight:600;color:var(--ad);}
+.sdot{width:6px;height:6px;border-radius:50%;background:var(--accent);}
+.sdot.saving{background:var(--warn);animation:bl 1s infinite;}
+.sdot.err{background:var(--danger);}
+@keyframes bl{0%,100%{opacity:1;}50%{opacity:0.3;}}
+.ibtn{width:34px;height:34px;background:var(--s2);border-radius:9px;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;}
+
+/* SCREENS */
+.sc{display:none;padding:16px;padding-bottom:112px;animation:fu .22s ease;}
+.sc.on{display:block;}
+@keyframes fu{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:translateY(0);}}
+.page-title{font-family:'Syne',sans-serif;font-size:22px;font-weight:800;letter-spacing:-0.5px;margin-bottom:3px;}
+.page-sub{font-size:13px;color:var(--muted);margin-bottom:16px;}
+
+/* TABS inside screen */
+.screen-tabs{display:flex;background:var(--s2);border-radius:10px;padding:3px;margin-bottom:16px;gap:3px;}
+.stab{flex:1;padding:8px 6px;border:none;background:transparent;border-radius:8px;cursor:pointer;font-family:'Inter',sans-serif;font-size:12px;font-weight:600;color:var(--muted);transition:all .18s;white-space:nowrap;}
+.stab.on{background:white;color:var(--text);box-shadow:var(--sh);}
+.stab-panel{display:none;}
+.stab-panel.on{display:block;}
+
+/* PILLS */
+.pill-row{display:flex;gap:7px;overflow-x:auto;padding-bottom:4px;margin-bottom:14px;scrollbar-width:none;}
+.pill-row::-webkit-scrollbar{display:none;}
+.pill{flex-shrink:0;display:flex;align-items:center;gap:6px;padding:6px 12px;border-radius:99px;border:1.5px solid var(--border);background:var(--surface);cursor:pointer;font-size:12px;font-weight:500;transition:all .18s;white-space:nowrap;color:var(--t2);}
+.pill.on{border-color:var(--primary);background:var(--pl);color:var(--primary);}
+.pd{width:7px;height:7px;border-radius:50%;}
+
+/* CARDS */
+.card{background:var(--surface);border-radius:var(--r);padding:16px;box-shadow:var(--sh);margin-bottom:12px;border:1px solid var(--border);}
+.flbl{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.05em;color:var(--muted);margin-bottom:7px;}
+.frow{display:flex;align-items:center;background:var(--bg);border-radius:var(--rs);border:1.5px solid var(--border);overflow:hidden;transition:border-color .18s;margin-bottom:14px;}
+.frow:focus-within{border-color:var(--primary);}
+.fpfx{padding:0 12px;font-size:14px;font-weight:600;color:var(--muted);border-right:1.5px solid var(--border);background:var(--surface);height:48px;display:flex;align-items:center;}
+.finp{flex:1;border:none;background:transparent;font-family:'Inter',sans-serif;font-size:20px;font-weight:700;color:var(--text);padding:10px 13px;outline:none;width:100%;}
+.finp::placeholder{color:var(--b2);}
+.comm-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:7px;}
+.comm-val{font-family:'Syne',sans-serif;font-size:26px;font-weight:800;color:var(--danger);}
+.comm-name{font-size:12px;font-weight:600;color:var(--muted);background:var(--bg);padding:3px 9px;border-radius:99px;border:1px solid var(--border);}
+
+/* STEP BUTTONS for commission */
+.step-ctrl{display:flex;align-items:center;gap:10px;background:var(--bg);border-radius:10px;padding:10px 12px;}
+.step-btn{width:38px;height:38px;border-radius:9px;border:1.5px solid var(--border);background:white;font-size:22px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--text);flex-shrink:0;user-select:none;-webkit-user-select:none;}
+.step-btn:active{background:var(--pl);}
+.step-val{flex:1;text-align:center;font-family:'Syne',sans-serif;font-size:26px;font-weight:800;color:var(--danger);}
+
+/* RESULT */
+.rbox{background:linear-gradient(135deg,var(--primary),var(--pd));border-radius:var(--r);padding:18px;color:white;text-align:center;margin-bottom:12px;position:relative;overflow:hidden;}
+.rbox::after{content:'';position:absolute;top:-40px;right:-40px;width:130px;height:130px;background:rgba(255,255,255,0.07);border-radius:50%;}
+.rlbl{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.12em;opacity:.7;margin-bottom:5px;}
+.rprice{font-family:'Syne',sans-serif;font-size:44px;font-weight:800;letter-spacing:-2px;line-height:1;margin-bottom:4px;position:relative;z-index:1;}
+.rsub{font-size:13px;opacity:.8;}
+.ract{display:none;gap:8px;margin-top:12px;position:relative;z-index:1;}
+.rbtn{flex:1;padding:8px;background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.25);border-radius:9px;color:white;font-family:'Inter',sans-serif;font-size:11px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:5px;}
+
+/* BREAKDOWN */
+.bd{background:var(--surface);border-radius:var(--r);padding:13px 15px;margin-bottom:12px;box-shadow:var(--sh);border:1px solid var(--border);display:none;}
+.bdr{display:flex;justify-content:space-between;align-items:center;padding:6px 0;font-size:13px;border-bottom:1px solid var(--border);}
+.bdr:last-child{border-bottom:none;}
+.bdl{color:var(--muted);font-weight:500;}
+.bdv{font-weight:700;}
+.bdv.g{color:var(--ad);}
+.bdv.r{color:var(--danger);}
+.bdv.o{color:var(--warn);}
+
+/* COST */
+.cost-card{background:linear-gradient(135deg,#0A1628,#0F2040);border-radius:var(--r);padding:16px;margin-bottom:12px;color:white;border:1px solid rgba(255,255,255,0.06);}
+.cost-title{font-family:'Syne',sans-serif;font-size:14px;font-weight:700;margin-bottom:12px;display:flex;align-items:center;gap:7px;}
+.cost-row{display:flex;align-items:center;gap:9px;background:rgba(255,255,255,0.06);border-radius:var(--rs);padding:9px 12px;margin-bottom:7px;}
+.cost-lbl{flex:1;font-size:13px;color:rgba(255,255,255,0.6);}
+.cost-inp{width:80px;border:none;background:rgba(255,255,255,0.1);color:white;border-radius:7px;padding:6px 9px;font-family:'Inter',sans-serif;font-size:14px;font-weight:600;outline:none;text-align:center;}
+.cost-res{border-top:1px solid rgba(255,255,255,0.08);padding-top:10px;margin-top:4px;display:none;justify-content:space-between;align-items:center;}
+.cost-resv{font-family:'Syne',sans-serif;font-size:18px;font-weight:800;}
+.pok{color:var(--accent);}
+.pbad{color:var(--danger);}
+
+/* WARN */
+.warn{background:var(--wl);border:1px solid rgba(245,159,0,0.25);border-radius:var(--rs);padding:10px 12px;display:flex;gap:8px;align-items:flex-start;margin-bottom:12px;font-size:12px;color:#B45309;font-weight:500;}
+.warn.hide{display:none;}
+
+/* REAJUSTE ALERT */
+.reajuste-card{background:linear-gradient(135deg,#FF6B35,#FF8C55);border-radius:var(--r);padding:15px;margin-bottom:12px;color:white;display:none;}
+.reaj-title{font-family:'Syne',sans-serif;font-size:14px;font-weight:800;margin-bottom:4px;}
+.reaj-sub{font-size:12px;opacity:.85;line-height:1.4;margin-bottom:10px;}
+.reaj-btn{background:rgba(255,255,255,0.2);border:1px solid rgba(255,255,255,0.3);border-radius:8px;padding:7px 14px;color:white;font-family:'Inter',sans-serif;font-size:12px;font-weight:600;cursor:pointer;}
+
+/* COMPARE */
+.ctbl{background:var(--surface);border-radius:var(--r);overflow:hidden;box-shadow:var(--sh);margin-bottom:12px;border:1px solid var(--border);}
+.chdr{background:var(--text);padding:9px 13px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.07em;color:rgba(255,255,255,0.45);}
+.crow{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;padding:9px 13px;border-bottom:1px solid var(--border);align-items:center;cursor:pointer;transition:background .15s;}
+.crow:last-child{border-bottom:none;}
+.crow:hover,.crow.on{background:var(--pl);}
+.plnm{font-size:12px;font-weight:600;display:flex;align-items:center;gap:5px;color:var(--t2);}
+.cpx{font-size:13px;font-weight:700;color:var(--text);}
+.cbadge{font-size:10px;font-weight:700;padding:2px 7px;border-radius:99px;background:var(--dl);color:var(--danger);display:inline-block;}
+
+/* AD INLINE */
+.ad-inline{background:var(--surface);border-radius:var(--r);padding:11px 13px;display:flex;align-items:center;gap:11px;border:1.5px solid var(--border);cursor:pointer;margin-bottom:12px;position:relative;box-shadow:var(--sh);}
+.ad-lbl{position:absolute;top:5px;right:9px;font-size:8px;color:var(--muted);font-weight:700;letter-spacing:0.07em;text-transform:uppercase;}
+.ad-icon{width:42px;height:42px;border-radius:10px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:21px;}
+.ad-title{font-size:12px;font-weight:600;margin-bottom:2px;color:var(--text);}
+.ad-sub{font-size:11px;color:var(--muted);}
+
+/* PRODUCTS */
+.pcrd{background:var(--surface);border-radius:var(--r);padding:12px;box-shadow:var(--sh);margin-bottom:9px;display:flex;align-items:center;gap:11px;cursor:pointer;transition:transform .15s,box-shadow .15s;border:1px solid var(--border);}
+.pcrd:hover{transform:translateY(-1px);box-shadow:var(--shm);}
+.pem{width:44px;height:44px;border-radius:10px;background:var(--bg);display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0;border:1px solid var(--border);}
+.pnm{font-size:13px;font-weight:600;margin-bottom:2px;color:var(--text);}
+.pbs{font-size:11px;color:var(--muted);}
+.ppx{font-size:15px;font-weight:800;color:var(--primary);display:block;}
+.pcm2{font-size:10px;color:var(--muted);display:block;}
+.ppft{font-size:10px;display:block;font-weight:500;}
+.ppft.ok{color:var(--ad);}
+.ppft.bad{color:var(--danger);}
+.empty-st{text-align:center;padding:40px 16px;}
+.empty-em{font-size:48px;margin-bottom:10px;}
+.empty-tt{font-size:15px;font-weight:700;margin-bottom:5px;}
+.empty-ds{font-size:13px;color:var(--muted);line-height:1.5;}
+
+/* HISTORY */
+.hist-item{background:var(--surface);border-radius:var(--r);padding:13px 14px;box-shadow:var(--sh);margin-bottom:8px;border:1px solid var(--border);display:flex;align-items:center;gap:12px;}
+.hist-icon{width:38px;height:38px;border-radius:9px;background:var(--pl);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:16px;}
+.hist-info{flex:1;}
+.hist-name{font-size:13px;font-weight:600;margin-bottom:2px;}
+.hist-meta{font-size:11px;color:var(--muted);}
+.hist-price{text-align:right;}
+.hist-app{font-size:14px;font-weight:800;color:var(--primary);}
+.hist-net{font-size:11px;color:var(--muted);}
+.hist-del{background:none;border:none;cursor:pointer;padding:4px;color:var(--muted);font-size:16px;}
+.hist-del:hover{color:var(--danger);}
+
+/* COMBO */
+.combo-item{background:var(--bg);border-radius:var(--rs);padding:11px 12px;margin-bottom:8px;display:flex;align-items:center;gap:10px;border:1px solid var(--border);}
+.combo-em{font-size:22px;flex-shrink:0;}
+.combo-name{flex:1;font-size:13px;font-weight:600;}
+.combo-price{font-size:13px;font-weight:700;color:var(--primary);white-space:nowrap;}
+.combo-del{background:none;border:none;cursor:pointer;font-size:14px;color:var(--muted);padding:2px 4px;}
+.combo-result{background:linear-gradient(135deg,var(--primary),var(--pd));border-radius:var(--r);padding:16px;color:white;text-align:center;margin-top:12px;}
+.combo-total{font-family:'Syne',sans-serif;font-size:36px;font-weight:800;letter-spacing:-1px;}
+.combo-sub{font-size:12px;opacity:.8;margin-top:4px;}
+
+/* SIMULATE */
+.stat-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;}
+.stat-card{background:var(--surface);border-radius:var(--r);padding:13px;box-shadow:var(--sh);border:1px solid var(--border);}
+.stat-lbl{font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:4px;}
+.stat-val{font-family:'Syne',sans-serif;font-size:19px;font-weight:800;letter-spacing:-0.5px;}
+.stat-val.g{color:var(--ad);}
+.stat-val.r{color:var(--danger);}
+.stat-val.o{color:var(--warn);}
+.sim-card{background:linear-gradient(135deg,#0A1628,#0F2040);border-radius:var(--r);padding:16px;color:white;margin-bottom:12px;border:1px solid rgba(255,255,255,0.05);}
+.sim-tt{font-family:'Syne',sans-serif;font-size:14px;font-weight:700;margin-bottom:12px;}
+.sir{display:flex;align-items:center;gap:9px;background:rgba(255,255,255,0.06);border-radius:var(--rs);padding:8px 12px;margin-bottom:6px;}
+.sil{flex:1;font-size:13px;color:rgba(255,255,255,0.6);}
+.sin{width:68px;border:none;background:rgba(255,255,255,0.12);color:white;border-radius:7px;padding:6px 9px;font-family:'Inter',sans-serif;font-size:14px;font-weight:700;outline:none;text-align:center;}
+.simrow{display:flex;justify-content:space-between;margin-bottom:6px;font-size:13px;}
+.simlbl{color:rgba(255,255,255,0.5);}
+.simtot{border-top:1px solid rgba(255,255,255,0.08);padding-top:10px;margin-top:6px;display:flex;justify-content:space-between;font-family:'Syne',sans-serif;font-size:16px;font-weight:800;}
+
+/* BEFORE/AFTER */
+.ba-card{background:var(--surface);border-radius:var(--r);padding:14px;box-shadow:var(--sh);margin-bottom:12px;border:1px solid var(--border);}
+.ba-title{font-size:13px;font-weight:700;margin-bottom:12px;color:var(--text);}
+.ba-row{display:flex;align-items:center;gap:10px;margin-bottom:8px;font-size:13px;}
+.ba-lbl{width:80px;color:var(--muted);font-size:12px;}
+.ba-inp{flex:1;padding:8px 11px;border:1.5px solid var(--border);border-radius:8px;font-family:'Inter',sans-serif;font-size:14px;font-weight:600;outline:none;background:var(--bg);}
+.ba-inp:focus{border-color:var(--primary);}
+.ba-result{background:var(--pl);border-radius:var(--rs);padding:12px 14px;margin-top:8px;display:none;}
+.ba-result-row{display:flex;justify-content:space-between;font-size:13px;padding:4px 0;border-bottom:1px solid rgba(27,79,255,0.1);}
+.ba-result-row:last-child{border-bottom:none;font-weight:700;font-size:14px;}
+
+/* CONFIG */
+.pcfg{background:var(--surface);border-radius:var(--r);overflow:hidden;box-shadow:var(--sh);margin-bottom:9px;border:1px solid var(--border);}
+.pcfg-hdr{display:flex;align-items:center;gap:10px;padding:13px 14px;cursor:pointer;}
+.pcfg-name{font-size:14px;font-weight:600;flex:1;color:var(--text);}
+.pcfg-badge{font-size:12px;font-weight:700;padding:3px 10px;border-radius:99px;}
+.pcfg-body{padding:12px 14px 14px;border-top:1px solid var(--border);}
+.ptog{display:flex;align-items:center;justify-content:space-between;padding-top:10px;font-size:13px;font-weight:500;color:var(--muted);}
+.tsw{position:relative;width:42px;height:23px;}
+.tsw input{opacity:0;width:0;height:0;}
+.tsl{position:absolute;inset:0;background:var(--b2);border-radius:12px;cursor:pointer;transition:background .2s;}
+.tsl::before{content:'';position:absolute;width:17px;height:17px;left:3px;top:3px;background:white;border-radius:50%;transition:transform .2s;box-shadow:0 1px 3px rgba(0,0,0,0.15);}
+.tsw input:checked + .tsl{background:var(--accent);}
+.tsw input:checked + .tsl::before{transform:translateX(19px);}
+.ucrd{background:var(--surface);border-radius:var(--r);padding:14px;box-shadow:var(--sh);margin-bottom:10px;display:none;align-items:center;gap:12px;border:1px solid var(--border);}
+.uav{width:40px;height:40px;border-radius:10px;background:linear-gradient(135deg,var(--primary),var(--pd));display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.uemail{font-size:13px;font-weight:600;margin-bottom:1px;color:var(--text);}
+.uplan{font-size:11px;color:var(--muted);}
+.ulout{margin-left:auto;background:none;border:1px solid var(--border);border-radius:8px;padding:5px 12px;font-size:12px;font-weight:600;color:var(--muted);cursor:pointer;font-family:'Inter',sans-serif;}
+.pro-btn{width:100%;padding:12px;background:linear-gradient(135deg,#0A1628,#0F2040);border:1px solid rgba(255,255,255,0.08);border-radius:var(--r);color:white;font-family:'Inter',sans-serif;font-size:13px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:11px;}
+.pro-badge{background:linear-gradient(135deg,#FFD700,#FFA500);color:#0A1628;font-size:10px;font-weight:800;padding:3px 8px;border-radius:99px;text-transform:uppercase;}
+.del-acc{width:100%;padding:10px;background:none;border:1px solid rgba(240,62,62,0.25);border-radius:var(--rs);color:var(--danger);font-family:'Inter',sans-serif;font-size:13px;font-weight:600;cursor:pointer;margin-bottom:11px;}
+
+/* TUTORIAL */
+.tut-hero{background:linear-gradient(135deg,var(--primary),var(--pd));border-radius:var(--r);padding:20px;margin-bottom:14px;color:white;text-align:center;}
+.tut-hero-title{font-family:'Syne',sans-serif;font-size:19px;font-weight:800;margin-bottom:5px;}
+.tut-hero-sub{font-size:12px;opacity:.75;line-height:1.5;}
+.tut-section-title{font-family:'Syne',sans-serif;font-size:15px;font-weight:800;margin-bottom:9px;margin-top:16px;display:flex;align-items:center;gap:7px;color:var(--text);}
+.tut-card{background:var(--surface);border-radius:var(--r);border:1px solid var(--border);overflow:hidden;box-shadow:var(--sh);margin-bottom:8px;}
+.tut-card-hdr{display:flex;align-items:center;gap:11px;padding:13px 14px;cursor:pointer;transition:background .15s;}
+.tut-card-hdr:hover{background:var(--bg);}
+.tut-card-icon{width:38px;height:38px;border-radius:9px;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:18px;}
+.tut-card-title{font-size:13px;font-weight:600;color:var(--text);margin-bottom:1px;}
+.tut-card-sub{font-size:11px;color:var(--muted);}
+.tut-arr{font-size:16px;color:var(--muted);margin-left:auto;transition:transform .2s;}
+.tut-arr.open{transform:rotate(90deg);}
+.tut-body{padding:12px 14px 14px;border-top:1px solid var(--border);display:none;}
+.tut-body.open{display:block;}
+.tut-step{display:flex;gap:9px;padding:7px 0;border-bottom:1px solid var(--border);}
+.tut-step:last-child{border-bottom:none;}
+.tut-num{width:20px;height:20px;border-radius:50%;background:var(--pl);color:var(--primary);font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px;}
+.tut-step-txt{flex:1;font-size:12px;color:var(--t2);line-height:1.6;}
+.tut-tip{background:var(--al);border:1px solid rgba(0,214,143,0.2);border-radius:var(--rs);padding:10px 12px;font-size:12px;color:var(--ad);font-weight:500;margin-top:9px;line-height:1.5;}
+
+/* FAB */
+.fab{position:fixed;bottom:76px;right:18px;width:50px;height:50px;background:linear-gradient(135deg,var(--primary),var(--pd));border-radius:13px;border:none;cursor:pointer;color:white;box-shadow:0 5px 18px rgba(27,79,255,0.4);display:none;align-items:center;justify-content:center;z-index:200;}
+.fab svg{width:24px;height:24px;}
+
+/* STICKY AD */
+.ad-sticky{position:fixed;bottom:58px;left:50%;transform:translateX(-50%);width:calc(100% - 28px);max-width:402px;background:var(--surface);border:1px solid var(--border);border-radius:11px;padding:8px 12px;display:flex;align-items:center;gap:9px;box-shadow:var(--shm);z-index:150;cursor:pointer;}
+.as-lbl{position:absolute;top:-7px;left:11px;font-size:8px;background:var(--surface);padding:0 4px;color:var(--muted);font-weight:700;letter-spacing:0.07em;text-transform:uppercase;border:1px solid var(--border);border-radius:4px;}
+.as-icon{width:36px;height:36px;border-radius:9px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:19px;}
+.as-tt{font-size:11px;font-weight:600;color:var(--text);}
+.as-sb{font-size:10px;color:var(--muted);}
+.as-cta{font-size:11px;font-weight:700;color:var(--primary);white-space:nowrap;margin-left:auto;}
+
+/* BOTTOM NAV */
+.bnav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:430px;background:var(--surface);border-top:1px solid var(--border);display:flex;padding:5px 0 17px;z-index:200;box-shadow:0 -2px 12px rgba(0,0,0,0.06);}
+.bni{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;border:none;background:none;cursor:pointer;font-family:'Inter',sans-serif;font-size:9px;font-weight:600;color:var(--muted);padding:4px 0;}
+.bni.on{color:var(--primary);}
+.bni svg{width:20px;height:20px;}
+
+/* MODALS */
+.mo{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);backdrop-filter:blur(4px);z-index:500;align-items:flex-end;justify-content:center;}
+.mo.open{display:flex;animation:fi .2s ease;}
+@keyframes fi{from{opacity:0;}to{opacity:1;}}
+.md{background:var(--surface);border-radius:22px 22px 0 0;padding:19px 17px 36px;width:100%;max-width:430px;animation:su .3s cubic-bezier(.4,0,.2,1);}
+@keyframes su{from{transform:translateY(100%);}to{transform:translateY(0);}}
+.mh{width:32px;height:4px;background:var(--b2);border-radius:2px;margin:0 auto 16px;}
+.mtt{font-family:'Syne',sans-serif;font-size:18px;font-weight:800;margin-bottom:13px;}
+.mfld{margin-bottom:11px;}
+.mlbl{font-size:11px;font-weight:600;letter-spacing:0.05em;text-transform:uppercase;color:var(--muted);margin-bottom:5px;display:block;}
+.minp{width:100%;padding:11px 13px;border:1.5px solid var(--border);border-radius:9px;font-family:'Inter',sans-serif;font-size:15px;font-weight:600;outline:none;background:var(--bg);color:var(--text);}
+.minp:focus{border-color:var(--primary);background:white;}
+.egrid{display:grid;grid-template-columns:repeat(8,1fr);gap:5px;margin-bottom:11px;}
+.eopt{width:33px;height:33px;border-radius:7px;border:none;background:var(--bg);cursor:pointer;font-size:18px;display:flex;align-items:center;justify-content:center;}
+.eopt.on,.eopt:hover{background:var(--pl);}
+.sbtn{width:100%;padding:13px;background:linear-gradient(135deg,var(--primary),var(--pd));border:none;border-radius:10px;color:white;font-family:'Inter',sans-serif;font-size:14px;font-weight:600;cursor:pointer;}
+.dbtn{width:100%;padding:10px;background:none;border:1.5px solid var(--danger);border-radius:10px;color:var(--danger);font-family:'Inter',sans-serif;font-size:13px;font-weight:600;cursor:pointer;margin-top:8px;display:none;}
+
+/* RATING MODAL */
+.rating-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);backdrop-filter:blur(4px);z-index:700;align-items:center;justify-content:center;padding:24px;}
+.rating-overlay.open{display:flex;animation:fi .3s ease;}
+.rating-card{background:white;border-radius:22px;padding:28px 22px;width:100%;max-width:360px;text-align:center;animation:pi .3s cubic-bezier(.4,0,.2,1);}
+@keyframes pi{from{transform:scale(0.9);opacity:0;}to{transform:scale(1);opacity:1;}}
+.rating-emoji{font-size:52px;margin-bottom:12px;}
+.rating-title{font-family:'Syne',sans-serif;font-size:20px;font-weight:800;margin-bottom:7px;letter-spacing:-0.5px;}
+.rating-sub{font-size:13px;color:var(--muted);line-height:1.6;margin-bottom:20px;}
+.stars{display:flex;justify-content:center;gap:8px;margin-bottom:18px;}
+.star{font-size:36px;cursor:pointer;transition:transform .15s;filter:grayscale(1);user-select:none;}
+.star.lit{filter:none;}
+.star:hover{transform:scale(1.15);}
+.rating-cta{width:100%;padding:13px;background:linear-gradient(135deg,var(--primary),var(--pd));border:none;border-radius:10px;color:white;font-family:'Inter',sans-serif;font-size:14px;font-weight:600;cursor:pointer;margin-bottom:9px;}
+.rating-skip{width:100%;padding:8px;background:none;border:none;font-size:12px;color:var(--muted);cursor:pointer;font-family:'Inter',sans-serif;}
+
+/* INTERSTITIAL */
+.ito{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.8);backdrop-filter:blur(8px);z-index:600;align-items:center;justify-content:center;padding:22px;}
+.ito.open{display:flex;}
+.itc{background:var(--surface);border-radius:20px;width:100%;max-width:370px;overflow:hidden;animation:pi .3s cubic-bezier(.4,0,.2,1);}
+.itimg{width:100%;height:140px;display:flex;align-items:center;justify-content:center;font-size:52px;}
+.itbody{padding:16px;}
+.it-albl{font-size:9px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:var(--muted);margin-bottom:6px;}
+.it-tt{font-family:'Syne',sans-serif;font-size:17px;font-weight:800;margin-bottom:5px;}
+.it-ds{font-size:12px;color:var(--muted);line-height:1.5;margin-bottom:12px;}
+.it-timer{font-size:11px;color:var(--muted);text-align:center;margin-bottom:5px;}
+.it-cta{width:100%;padding:12px;border:none;border-radius:9px;color:white;font-family:'Inter',sans-serif;font-size:13px;font-weight:600;cursor:pointer;margin-bottom:7px;}
+.it-skip{width:100%;padding:8px;background:none;border:none;font-size:12px;color:var(--muted);cursor:pointer;font-family:'Inter',sans-serif;}
+::-webkit-scrollbar{width:0;}
+
+/* SPLASH PARCEIRO */
+#splash-parceiro{
+  position:fixed;inset:0;z-index:980;
+  background:linear-gradient(145deg,#0A1628,#0F2040);
+  display:none;flex-direction:column;
+  align-items:center;justify-content:center;
+  padding:28px;
+}
+.splash-skip{
+  position:absolute;top:16px;right:16px;
+  background:rgba(255,255,255,0.12);
+  border:1px solid rgba(255,255,255,0.2);
+  border-radius:99px;padding:5px 14px;
+  color:white;font-family:'Inter',sans-serif;
+  font-size:12px;font-weight:600;cursor:pointer;border:none;
+}
+.splash-badge{
+  display:inline-flex;align-items:center;gap:5px;
+  background:rgba(255,165,0,0.15);
+  border:1px solid rgba(255,165,0,0.3);
+  color:#FFA500;font-size:10px;font-weight:700;
+  letter-spacing:0.08em;text-transform:uppercase;
+  padding:3px 12px;border-radius:99px;margin-bottom:18px;
+}
+.splash-logo-box{
+  width:140px;height:140px;
+  background:linear-gradient(135deg,#FF6B35,#FF9A5C);
+  border-radius:28px;
+  display:flex;flex-direction:column;
+  align-items:center;justify-content:center;
+  margin-bottom:24px;
+  box-shadow:0 12px 40px rgba(255,107,53,0.4);
+  font-size:14px;font-weight:800;color:white;
+  text-align:center;gap:6px;
+}
+.splash-logo-box span{font-size:36px;}
+.splash-title{
+  font-family:'Syne',sans-serif;font-size:22px;
+  font-weight:800;color:white;letter-spacing:-0.5px;
+  text-align:center;margin-bottom:8px;
+}
+.splash-sub{
+  font-size:14px;color:rgba(255,255,255,0.55);
+  text-align:center;line-height:1.6;
+  margin-bottom:28px;max-width:300px;
+}
+.splash-cta{
+  width:100%;max-width:320px;padding:15px;
+  background:linear-gradient(135deg,#FF6B35,#FF9A5C);
+  border:none;border-radius:12px;color:white;
+  font-family:'Inter',sans-serif;font-size:15px;
+  font-weight:700;cursor:pointer;
+  box-shadow:0 6px 20px rgba(255,107,53,0.4);
+  margin-bottom:12px;
+}
+.splash-later{
+  background:none;border:none;color:rgba(255,255,255,0.35);
+  font-family:'Inter',sans-serif;font-size:12px;
+  cursor:pointer;text-decoration:underline;
+}
+.splash-timer{
+  font-size:11px;color:rgba(255,255,255,0.3);
+  margin-bottom:8px;
+}
+
+/* BANNER PARCEIRO INLINE */
+.partner-banner{
+  background:linear-gradient(135deg,#FF6B35,#FF9A5C);
+  border-radius:var(--r);padding:14px;
+  margin-bottom:12px;cursor:pointer;
+  display:flex;align-items:center;gap:13px;
+  box-shadow:0 4px 16px rgba(255,107,53,0.3);
+  position:relative;overflow:hidden;
+  transition:transform .15s,box-shadow .15s;
+}
+.partner-banner:hover{transform:translateY(-1px);box-shadow:0 6px 22px rgba(255,107,53,0.4);}
+.partner-banner::before{
+  content:'';position:absolute;top:-20px;right:-20px;
+  width:80px;height:80px;
+  background:rgba(255,255,255,0.1);border-radius:50%;
+}
+.partner-logo{
+  width:54px;height:54px;border-radius:13px;
+  background:rgba(255,255,255,0.2);
+  display:flex;flex-direction:column;
+  align-items:center;justify-content:center;
+  flex-shrink:0;font-size:10px;font-weight:800;
+  color:white;text-align:center;gap:2px;
+}
+.partner-logo span{font-size:22px;}
+.partner-info{flex:1;}
+.partner-tag{
+  font-size:9px;font-weight:700;letter-spacing:0.08em;
+  text-transform:uppercase;color:rgba(255,255,255,0.6);
+  margin-bottom:3px;
+}
+.partner-name{font-family:'Syne',sans-serif;font-size:14px;font-weight:800;color:white;margin-bottom:2px;}
+.partner-desc{font-size:11px;color:rgba(255,255,255,0.7);line-height:1.4;}
+.partner-btn{
+  background:white;border:none;border-radius:9px;
+  padding:8px 13px;color:#FF6B35;
+  font-family:'Inter',sans-serif;font-size:12px;
+  font-weight:700;cursor:pointer;white-space:nowrap;
+  flex-shrink:0;
+}
+
+/* ANUNCIE AQUI */
+.anuncie-card{
+  background:linear-gradient(135deg,#0A1628,#0F2040);
+  border-radius:var(--r);padding:16px;margin-bottom:12px;
+  border:1.5px dashed rgba(255,255,255,0.15);
+  cursor:pointer;transition:border-color .2s;
+  position:relative;overflow:hidden;
+}
+.anuncie-card:hover{border-color:rgba(255,255,255,0.35);}
+.anuncie-card::before{
+  content:'';position:absolute;top:-30px;right:-30px;
+  width:100px;height:100px;
+  background:rgba(27,79,255,0.15);border-radius:50%;
+}
+.anuncie-badge{
+  display:inline-flex;align-items:center;gap:5px;
+  background:rgba(255,215,0,0.15);
+  border:1px solid rgba(255,215,0,0.3);
+  color:#FFD700;font-size:10px;font-weight:700;
+  letter-spacing:0.08em;text-transform:uppercase;
+  padding:3px 10px;border-radius:99px;margin-bottom:10px;
+}
+.anuncie-title{
+  font-family:'Syne',sans-serif;font-size:16px;font-weight:800;
+  color:white;margin-bottom:5px;letter-spacing:-0.3px;
+}
+.anuncie-sub{font-size:12px;color:rgba(255,255,255,0.5);line-height:1.5;margin-bottom:12px;}
+.anuncie-stats{display:flex;gap:16px;margin-bottom:14px;}
+.anuncie-stat{text-align:center;}
+.anuncie-stat-val{font-family:'Syne',sans-serif;font-size:18px;font-weight:800;color:white;display:block;}
+.anuncie-stat-lbl{font-size:10px;color:rgba(255,255,255,0.4);}
+.anuncie-btn{
+  width:100%;padding:11px;
+  background:linear-gradient(135deg,#FFD700,#FFA500);
+  border:none;border-radius:9px;
+  color:#0A1628;font-family:'Inter',sans-serif;
+  font-size:13px;font-weight:800;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;gap:6px;
+}
+
+/* MODAL ANUNCIE */
+.anuncie-form-field{margin-bottom:12px;}
+.anuncie-form-lbl{font-size:11px;font-weight:600;letter-spacing:0.05em;text-transform:uppercase;color:var(--muted);margin-bottom:5px;display:block;}
+.anuncie-form-inp{width:100%;padding:11px 13px;border:1.5px solid var(--border);border-radius:9px;font-family:'Inter',sans-serif;font-size:14px;outline:none;background:var(--bg);color:var(--text);}
+.anuncie-form-inp:focus{border-color:var(--primary);background:white;}
+.anuncie-plans{display:flex;flex-direction:column;gap:9px;margin-bottom:14px;}
+.anuncie-plan{border:1.5px solid var(--border);border-radius:10px;padding:12px 14px;cursor:pointer;transition:all .18s;}
+.anuncie-plan.selected{border-color:var(--primary);background:var(--pl);}
+.anuncie-plan-name{font-size:13px;font-weight:700;margin-bottom:2px;}
+.anuncie-plan-desc{font-size:11px;color:var(--muted);}
+.anuncie-plan-price{font-family:'Syne',sans-serif;font-size:16px;font-weight:800;color:var(--primary);margin-top:4px;}
+
+/* PWA INSTALL */
+.pwa-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.55);backdrop-filter:blur(4px);z-index:850;align-items:flex-end;justify-content:center;}
+.pwa-overlay.open{display:flex;animation:fi .3s ease;}
+.pwa-card{background:white;border-radius:24px 24px 0 0;padding:22px 20px 38px;width:100%;max-width:430px;animation:su .35s cubic-bezier(.4,0,.2,1);}
+.pwa-handle{width:32px;height:4px;background:var(--b2);border-radius:2px;margin:0 auto 18px;}
+.pwa-header{display:flex;align-items:center;gap:14px;margin-bottom:16px;}
+.pwa-app-icon{width:56px;height:56px;border-radius:14px;flex-shrink:0;}
+.pwa-app-name{font-family:'Syne',sans-serif;font-size:18px;font-weight:800;letter-spacing:-0.5px;}
+.pwa-app-sub{font-size:12px;color:var(--muted);margin-top:2px;}
+.pwa-desc{font-size:14px;color:var(--t2);line-height:1.6;margin-bottom:18px;}
+.pwa-steps{display:flex;flex-direction:column;gap:10px;margin-bottom:20px;}
+.pwa-step{display:flex;align-items:flex-start;gap:12px;background:var(--bg);border-radius:10px;padding:12px 13px;}
+.pwa-step-num{width:22px;height:22px;border-radius:50%;background:var(--primary);color:white;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px;}
+.pwa-step-text{font-size:13px;line-height:1.5;color:var(--t2);}
+.pwa-step-text strong{color:var(--text);}
+.pwa-os-tabs{display:flex;background:var(--bg);border-radius:9px;padding:3px;gap:3px;margin-bottom:14px;}
+.pwa-os-tab{flex:1;padding:8px;border:none;background:transparent;border-radius:7px;cursor:pointer;font-family:'Inter',sans-serif;font-size:13px;font-weight:600;color:var(--muted);}
+.pwa-os-tab.on{background:white;color:var(--text);box-shadow:var(--sh);}
+.pwa-os-panel{display:none;}
+.pwa-os-panel.on{display:block;}
+.pwa-install-btn{width:100%;padding:14px;background:linear-gradient(135deg,var(--primary),var(--pd));border:none;border-radius:11px;color:white;font-family:'Inter',sans-serif;font-size:15px;font-weight:600;cursor:pointer;box-shadow:0 4px 14px rgba(27,79,255,0.3);margin-bottom:10px;display:flex;align-items:center;justify-content:center;gap:8px;}
+.pwa-later-btn{width:100%;padding:10px;background:none;border:none;color:var(--muted);font-family:'Inter',sans-serif;font-size:13px;cursor:pointer;}
+.pwa-native-banner{background:var(--pl);border:1px solid rgba(27,79,255,0.2);border-radius:10px;padding:12px 14px;margin-bottom:14px;font-size:13px;color:var(--primary);font-weight:500;display:none;align-items:center;gap:10px;}
+</style>
+</head>
+<body>
+
+<!-- SPLASH PARCEIRO -->
+<div id="splash-parceiro">
+  <button class="splash-skip" id="splash-skip-btn" onclick="closeSplash()">Pular</button>
+  <div class="splash-badge">🤝 Parceiro PreçoCerto</div>
+  <div class="splash-logo-box">
+    <span>🍕</span>
+    LOGO<br>TESTE
+  </div>
+  <div class="splash-title">Curso Pizza Cone</div>
+  <div class="splash-sub">Imagem e texto de teste. Aqui vai a frase de impacto do seu parceiro para atrair clientes do delivery.</div>
+  <div class="splash-timer" id="splash-timer">Redirecionando em 5s...</div>
+  <button class="splash-cta" onclick="openPartner()">🚀 Acessar agora</button>
+  <button class="splash-later" onclick="closeSplash()">Continuar para o app</button>
+</div>
+
+<!-- AUTH -->
+<div id="auth-screen">
+  <svg class="alogo" viewBox="0 0 76 76" fill="none"><rect width="76" height="76" rx="19" fill="url(#ag)"/><defs><linearGradient id="ag" x1="0" y1="0" x2="76" y2="76"><stop stop-color="#1B4FFF"/><stop offset="1" stop-color="#0D2ECC"/></linearGradient></defs><path d="M22 52l9-9 7 7 11-14 9 8" stroke="white" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/><circle cx="27" cy="26" r="8" fill="rgba(255,255,255,0.15)" stroke="white" stroke-width="2"/><text x="22.5" y="30" font-family="Inter" font-weight="800" font-size="10" fill="white">R$</text></svg>
+  <div class="aname">Preço<span>Certo</span></div>
+  <div class="asub">Nunca mais perca dinheiro<br>na comissão dos apps de delivery</div>
+  <div class="acard">
+    <div class="atabs"><button class="atab on" id="tab-in" onclick="switchTab('in')">Entrar</button><button class="atab" id="tab-reg" onclick="switchTab('reg')">Criar conta</button></div>
+    <div class="aerr" id="aerr"></div>
+    <div class="afld"><label class="albl">E-mail</label><input class="ainp" type="email" id="aemail" placeholder="seu@email.com"/></div>
+    <div class="afld"><label class="albl">Senha</label><input class="ainp" type="password" id="apass" placeholder="Mínimo 6 caracteres" onkeydown="if(event.key==='Enter')submitAuth()"/></div>
+    <button class="abtn" id="abtn" onclick="submitAuth()">Entrar</button>
+  </div>
+  <button class="askip" onclick="skipAuth()">Usar sem conta (sem backup)</button>
+</div>
+
+<!-- ONBOARDING -->
+<div id="onboarding">
+  <svg class="ob-icon" viewBox="0 0 86 86" fill="none"><rect width="86" height="86" rx="21" fill="url(#og)"/><defs><linearGradient id="og" x1="0" y1="0" x2="86" y2="86"><stop stop-color="#1B4FFF"/><stop offset="1" stop-color="#00D68F"/></linearGradient></defs><path d="M26 58l9-9 7 7 11-14 9 8" stroke="white" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/><circle cx="31" cy="28" r="9" fill="rgba(255,255,255,0.2)" stroke="white" stroke-width="2.5"/><text x="26" y="32" font-family="Inter" font-weight="800" font-size="10" fill="white">R$</text></svg>
+  <div class="ob-title">Bem-vindo ao PreçoCerto!</div>
+  <div class="ob-desc">Descubra quanto cobrar nos apps de delivery e pare de perder dinheiro na comissão.</div>
+  <div class="ob-steps">
+    <div class="ob-step"><div class="ob-si" style="background:#EEF2FF;">🧮</div><div class="ob-st"><strong>Calculadora inteligente</strong><span>Preço certo para iFood, Rappi, Aiqfome e mais</span></div></div>
+    <div class="ob-step"><div class="ob-si" style="background:#E6FBF4;">📦</div><div class="ob-st"><strong>Cardápio completo</strong><span>Salve todos os produtos com preços automáticos</span></div></div>
+    <div class="ob-step"><div class="ob-si" style="background:#FFF8E1;">🔄</div><div class="ob-st"><strong>Calculadora reversa</strong><span>Já tem o preço no app? Descubra o que recebe</span></div></div>
+    <div class="ob-step"><div class="ob-si" style="background:#FFF0F0;">🍔</div><div class="ob-st"><strong>Calculadora de combo</strong><span>Monte promoções sem perder dinheiro</span></div></div>
+  </div>
+  <button class="ob-btn" onclick="closeOB()">Criar conta grátis →</button>
+  <button style="width:100%;max-width:340px;padding:11px;background:none;border:none;font-size:13px;color:var(--muted);cursor:pointer;font-family:'Inter',sans-serif;margin-top:6px;text-decoration:underline;" onclick="closeOBSkip()">Já tenho conta / entrar sem conta</button>
+</div>
+
+<!-- TOP AD -->
+<div class="ad-top" onclick="adClick('top')">
+  <div class="ad-top-lbl">Anúncio</div>
+  <div class="ad-top-icon">📦</div>
+  <div class="ad-top-body"><div class="ad-top-title">Embalagens com sua marca</div><div class="ad-top-sub">Caixas, sacolas e adesivos personalizados</div></div>
+  <div class="ad-top-cta">Ver oferta</div>
+</div>
+
+<!-- HEADER -->
+<header class="hdr">
+  <div class="logo">
+    <svg class="logo-icon" viewBox="0 0 32 32" fill="none"><rect width="32" height="32" rx="8" fill="url(#lg)"/><defs><linearGradient id="lg" x1="0" y1="0" x2="32" y2="32"><stop stop-color="#1B4FFF"/><stop offset="1" stop-color="#0D2ECC"/></linearGradient></defs><path d="M8 22l5-5 4 4 6-8 5 4" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="11" cy="10" r="4" fill="rgba(255,255,255,0.2)" stroke="white" stroke-width="1.5"/><text x="8.5" y="13" font-family="Inter" font-weight="800" font-size="5" fill="white">R$</text></svg>
+    <div class="logo-name">Preço<span>Certo</span></div>
+  </div>
+  <div class="hright">
+    <div class="sync-pill" id="sync-pill"><div class="sdot" id="sdot"></div><span id="sync-email"></span></div>
+    <button class="ibtn" onclick="showScreen('config')"><svg viewBox="0 0 20 20" width="17" height="17" fill="none"><circle cx="10" cy="10" r="2.5" stroke="#6B7280" stroke-width="1.5"/><path d="M10 2v1.5M10 16.5V18M3.5 10H2M18 10h-1.5M5.05 5.05l1.06 1.06M13.89 13.89l1.06 1.06M5.05 14.95l1.06-1.06M13.89 6.11l1.06-1.06" stroke="#6B7280" stroke-width="1.5" stroke-linecap="round"/></svg></button>
+  </div>
+</header>
+
+<!-- REAJUSTE ALERT (global, shown on calc tab) -->
+<div class="reajuste-card" id="reajuste-card" style="margin:12px 16px 0;display:none;">
+  <div class="reaj-title">⚠️ Hora de reajustar seus preços!</div>
+  <div class="reaj-sub" id="reaj-sub">Faz mais de 30 dias desde o último reajuste. Com a inflação, você pode estar perdendo dinheiro.</div>
+  <button class="reaj-btn" onclick="dismissReajuste()">Entendi, vou revisar</button>
+</div>
+
+<!-- ══ CALC ══ -->
+<div class="sc on" id="sc-calc">
+  <div class="page-title">Calculadora</div>
+  <div class="page-sub">Escolha o modo de cálculo</div>
+
+  <!-- BANNER PARCEIRO -->
+  <div class="partner-banner" onclick="openPartner()">
+    <div class="partner-logo"><span>🍕</span>TESTE</div>
+    <div class="partner-info">
+      <div class="partner-tag">🤝 Parceiro oficial</div>
+      <div class="partner-name">Curso Pizza Cone</div>
+      <div class="partner-desc">Texto de teste · Clique para saber mais</div>
+    </div>
+    <button class="partner-btn">Ver →</button>
+  </div>
+
+  <div class="screen-tabs">
+    <button class="stab on" id="stab-normal" onclick="switchCalcTab('normal')">💰 Preço a cobrar</button>
+    <button class="stab" id="stab-reverse" onclick="switchCalcTab('reverse')">🔄 Preço inverso</button>
+    <button class="stab" id="stab-combo" onclick="switchCalcTab('combo')">🍔 Combo</button>
+  </div>
+
+  <!-- NORMAL -->
+  <div class="stab-panel on" id="panel-normal">
+    <div class="pill-row" id="pills-calc"></div>
+    <div class="card">
+      <div class="flbl">Quanto quero receber líquido</div>
+      <div class="frow"><div class="fpfx">R$</div><input class="finp" type="number" id="price-in" placeholder="0,00" oninput="calculate()"/></div>
+      <div class="comm-row"><div><div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:0.05em;color:var(--muted);margin-bottom:2px;">Comissão da plataforma</div><div class="comm-val" id="cval">27%</div></div><div class="comm-name" id="cname">iFood</div></div>
+      <div class="step-ctrl">
+        <button class="step-btn" onclick="stepComm(-1)">−</button>
+        <div class="step-val" id="step-disp">27%</div>
+        <button class="step-btn" onclick="stepComm(1)">+</button>
+      </div>
+    </div>
+    <div class="warn hide" id="warn">⚠️ <span id="warn-txt"></span></div>
+    <div class="rbox">
+      <div class="rlbl">Cadastrar no app por</div>
+      <div class="rprice" id="rprice">R$ —</div>
+      <div class="rsub" id="rsub">Insira o preço acima para calcular</div>
+      <div class="ract" id="ract">
+        <button class="rbtn" onclick="shareResult()">📤 Compartilhar</button>
+        <button class="rbtn" onclick="saveAsProduct()">+ Salvar produto</button>
+      </div>
+    </div>
+    <div class="bd" id="bd">
+      <div class="bdr"><span class="bdl">Preço no app</span><span class="bdv" id="bd-app">—</span></div>
+      <div class="bdr"><span class="bdl">Comissão (<span id="bd-pct">27%</span>)</span><span class="bdv r" id="bd-comm">—</span></div>
+      <div class="bdr"><span class="bdl">Você recebe</span><span class="bdv g" id="bd-net">—</span></div>
+      <div class="bdr"><span class="bdl">Margem real</span><span class="bdv o" id="bd-marg">—</span></div>
+    </div>
+    <div class="cost-card">
+      <div class="cost-title">🧾 Lucro real (com custos)</div>
+      <div class="cost-row"><span class="cost-lbl">Ingredientes (R$)</span><input class="cost-inp" type="number" id="c-ingr" placeholder="0" oninput="calcProfit()"/></div>
+      <div class="cost-row"><span class="cost-lbl">Embalagem (R$)</span><input class="cost-inp" type="number" id="c-pack" placeholder="0" oninput="calcProfit()"/></div>
+      <div class="cost-row"><span class="cost-lbl">Mão de obra (R$)</span><input class="cost-inp" type="number" id="c-labor" placeholder="0" oninput="calcProfit()"/></div>
+      <div class="cost-res" id="cost-res"><span style="font-size:12px;color:rgba(255,255,255,0.55);">Lucro real por venda</span><span class="cost-resv" id="cost-resv">—</span></div>
+    </div>
+    <div style="font-size:11px;font-weight:700;color:var(--muted);margin-bottom:8px;text-transform:uppercase;letter-spacing:0.05em;">Comparativo</div>
+    <div class="ctbl"><div class="chdr"><span>Plataforma</span><span>Preço no app</span><span>Comissão</span></div><div id="ctbody"></div></div>
+    <div class="ad-inline" onclick="adClick('ic')"><div class="ad-lbl">Anúncio</div><div class="ad-icon" style="background:linear-gradient(135deg,#FF6B35,#FFA057);">🛵</div><div><div class="ad-title">Sistema de Gestão Delivery</div><div class="ad-sub">Painel completo para gerenciar pedidos</div></div><div style="margin-left:auto;font-size:16px;color:var(--muted);">›</div></div>
+    <button class="pro-btn" onclick="showMod('mod-pro')">⭐ Remover anúncios — PRO <span class="pro-badge">R$9,90/mês</span></button>
+  </div>
+
+  <!-- REVERSE -->
+  <div class="stab-panel" id="panel-reverse">
+    <div class="pill-row" id="pills-reverse"></div>
+    <div class="card">
+      <div class="flbl">Preço que está cadastrado no app (R$)</div>
+      <div class="frow"><div class="fpfx">R$</div><input class="finp" type="number" id="rev-price" placeholder="0,00" oninput="calcReverse()"/></div>
+      <div class="comm-row"><div><div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:0.05em;color:var(--muted);margin-bottom:2px;">Comissão da plataforma</div><div class="comm-val" id="rev-cval">27%</div></div><div class="comm-name" id="rev-cname">iFood</div></div>
+      <div class="step-ctrl">
+        <button class="step-btn" onclick="stepRevComm(-1)">−</button>
+        <div class="step-val" id="rev-step-disp">27%</div>
+        <button class="step-btn" onclick="stepRevComm(1)">+</button>
+      </div>
+    </div>
+    <div class="rbox" style="background:linear-gradient(135deg,#00B87A,#00966A);">
+      <div class="rlbl">Você está recebendo</div>
+      <div class="rprice" id="rev-result">R$ —</div>
+      <div class="rsub" id="rev-sub">Insira o preço cadastrado para calcular</div>
+    </div>
+    <div class="bd" id="rev-bd">
+      <div class="bdr"><span class="bdl">Preço no app</span><span class="bdv" id="rev-bd-app">—</span></div>
+      <div class="bdr"><span class="bdl">Comissão cobrada</span><span class="bdv r" id="rev-bd-comm">—</span></div>
+      <div class="bdr"><span class="bdl">Você recebe líquido</span><span class="bdv g" id="rev-bd-net">—</span></div>
+      <div class="bdr"><span class="bdl">Margem real</span><span class="bdv o" id="rev-bd-marg">—</span></div>
+    </div>
+    <div class="ad-inline" onclick="adClick('irev')"><div class="ad-lbl">Anúncio</div><div class="ad-icon" style="background:linear-gradient(135deg,#667eea,#764ba2);">💰</div><div><div class="ad-title">Está perdendo dinheiro no iFood?</div><div class="ad-sub">Veja como otimizar seus preços</div></div><div style="margin-left:auto;font-size:16px;color:var(--muted);">›</div></div>
+  </div>
+
+  <!-- COMBO -->
+  <div class="stab-panel" id="panel-combo">
+    <div class="pill-row" id="pills-combo"></div>
+    <div class="card">
+      <div class="flbl" style="margin-bottom:10px;">Monte seu combo ou promoção</div>
+      <div id="combo-items"></div>
+      <button onclick="openAddCombo()" style="width:100%;padding:10px;background:var(--pl);border:1.5px dashed var(--primary);border-radius:9px;color:var(--primary);font-family:'Inter',sans-serif;font-size:13px;font-weight:600;cursor:pointer;margin-bottom:4px;">+ Adicionar produto ao combo</button>
+    </div>
+    <div class="combo-result" id="combo-result" style="display:none;">
+      <div class="rlbl">Preço do combo no app</div>
+      <div class="combo-total" id="combo-total">R$ —</div>
+      <div class="combo-sub" id="combo-sub">Você recebe R$ — líquido</div>
+      <div style="margin-top:12px;display:flex;gap:8px;">
+        <button class="rbtn" onclick="shareCombo()" style="flex:1;">📤 Compartilhar</button>
+        <button class="rbtn" onclick="clearCombo()" style="flex:1;">🗑️ Limpar</button>
+      </div>
+    </div>
+    <div class="ad-inline" onclick="adClick('ico')"><div class="ad-lbl">Anúncio</div><div class="ad-icon" style="background:linear-gradient(135deg,#f093fb,#f5576c);">🎁</div><div><div class="ad-title">Crie promoções que vendem mais</div><div class="ad-sub">Aprenda estratégias de combo para delivery</div></div><div style="margin-left:auto;font-size:16px;color:var(--muted);">›</div></div>
+  </div>
+</div>
+
+<!-- ══ PRODUCTS ══ -->
+<div class="sc" id="sc-products">
+  <div class="page-title">Meu Cardápio</div>
+  <div class="page-sub">Preços calculados por plataforma</div>
+  <div class="pill-row" id="pills-products"></div>
+  <!-- BANNER PARCEIRO -->
+  <div class="partner-banner" onclick="openPartner()">
+    <div class="partner-logo"><span>🍕</span>TESTE</div>
+    <div class="partner-info">
+      <div class="partner-tag">🤝 Parceiro oficial</div>
+      <div class="partner-name">Curso Pizza Cone</div>
+      <div class="partner-desc">Texto de teste · Clique para saber mais</div>
+    </div>
+    <button class="partner-btn">Ver →</button>
+  </div>
+  <div id="prod-list"></div>
+  <div class="ad-inline" onclick="adClick('ip')"><div class="ad-lbl">Anúncio</div><div class="ad-icon" style="background:linear-gradient(135deg,#667eea,#764ba2);">📸</div><div><div class="ad-title">Fotos profissionais para delivery</div><div class="ad-sub">Aumente vendas com fotos apetitosas</div></div><div style="margin-left:auto;font-size:16px;color:var(--muted);">›</div></div>
+</div>
+
+<!-- ══ HISTORY ══ -->
+<div class="sc" id="sc-history">
+  <div class="page-title">Histórico</div>
+  <div class="page-sub">Seus últimos cálculos salvos</div>
+  <!-- BANNER PARCEIRO -->
+  <div class="partner-banner" onclick="openPartner()" style="margin-bottom:14px;">
+    <div class="partner-logo"><span>🍕</span>TESTE</div>
+    <div class="partner-info">
+      <div class="partner-tag">🤝 Parceiro oficial</div>
+      <div class="partner-name">Curso Pizza Cone</div>
+      <div class="partner-desc">Texto de teste · Clique para saber mais</div>
+    </div>
+    <button class="partner-btn">Ver →</button>
+  </div>
+  <div id="hist-list"></div>
+  <div class="ad-inline" onclick="adClick('ih')"><div class="ad-lbl">Anúncio</div><div class="ad-icon" style="background:linear-gradient(135deg,#11998e,#38ef7d);">💳</div><div><div class="ad-title">Máquina de cartão com menor taxa</div><div class="ad-sub">0,99% no crédito · Sem mensalidade</div></div><div style="margin-left:auto;font-size:16px;color:var(--muted);">›</div></div>
+</div>
+
+<!-- ══ SIMULATE ══ -->
+<div class="sc" id="sc-simulate">
+  <div class="page-title">Simulador</div>
+  <div class="page-sub">Quanto vai lucrar no mês?</div>
+  <!-- BANNER PARCEIRO -->
+  <div class="partner-banner" onclick="openPartner()">
+    <div class="partner-logo"><span>🍕</span>TESTE</div>
+    <div class="partner-info">
+      <div class="partner-tag">🤝 Parceiro oficial</div>
+      <div class="partner-name">Curso Pizza Cone</div>
+      <div class="partner-desc">Texto de teste · Clique para saber mais</div>
+    </div>
+    <button class="partner-btn">Ver →</button>
+  </div>
+  <div class="screen-tabs">
+    <button class="stab on" id="stab-sim" onclick="switchSimTab('sim')">📊 Simulador</button>
+    <button class="stab" id="stab-ba" onclick="switchSimTab('ba')">🔀 Antes/Depois</button>
+  </div>
+  <div class="stab-panel on" id="panel-sim">
+    <div class="stat-grid">
+      <div class="stat-card"><div class="stat-lbl">Receita bruta</div><div class="stat-val g" id="sg">R$0</div></div>
+      <div class="stat-card"><div class="stat-lbl">Comissões pagas</div><div class="stat-val r" id="sc2">R$0</div></div>
+      <div class="stat-card"><div class="stat-lbl">Lucro líquido</div><div class="stat-val o" id="sp">R$0</div></div>
+      <div class="stat-card"><div class="stat-lbl">Melhor plataforma</div><div class="stat-val" style="font-size:15px;" id="sb">—</div></div>
+    </div>
+    <div class="sim-card">
+      <div class="sim-tt">⚙️ Parâmetros</div>
+      <div class="sir"><span class="sil">Pedidos por dia</span><input class="sin" type="number" id="s-ord" value="20" oninput="runSim()"/></div>
+      <div class="sir"><span class="sil">Ticket médio (R$)</span><input class="sin" type="number" id="s-tkt" value="45" oninput="runSim()"/></div>
+      <div class="sir"><span class="sil">Dias no mês</span><input class="sin" type="number" id="s-dys" value="26" oninput="runSim()"/></div>
+      <div id="sim-res" style="margin-top:11px;"></div>
+      <div class="simtot"><span>Melhor lucro</span><span style="color:var(--accent);" id="sbv">R$0</span></div>
+    </div>
+  </div>
+  <div class="stab-panel" id="panel-ba">
+    <div class="ba-card">
+      <div class="ba-title">💡 Simule o impacto de um reajuste de preços</div>
+      <div class="ba-row"><span class="ba-lbl">Pedidos/dia</span><input class="ba-inp" type="number" id="ba-ord" value="20" oninput="calcBA()"/></div>
+      <div class="ba-row"><span class="ba-lbl">Dias/mês</span><input class="ba-inp" type="number" id="ba-dys" value="26" oninput="calcBA()"/></div>
+      <div class="ba-row"><span class="ba-lbl">Preço atual</span><input class="ba-inp" type="number" id="ba-old" placeholder="Ex: 40,00" oninput="calcBA()"/></div>
+      <div class="ba-row"><span class="ba-lbl">Novo preço</span><input class="ba-inp" type="number" id="ba-new" placeholder="Ex: 45,00" oninput="calcBA()"/></div>
+      <div class="ba-row"><span class="ba-lbl">Comissão %</span><input class="ba-inp" type="number" id="ba-comm" placeholder="Ex: 27" oninput="calcBA()"/></div>
+      <div class="ba-result" id="ba-result">
+        <div class="ba-result-row"><span>Lucro mensal atual</span><span id="ba-r-old" style="font-weight:700;">—</span></div>
+        <div class="ba-result-row"><span>Lucro mensal novo</span><span id="ba-r-new" style="font-weight:700;">—</span></div>
+        <div class="ba-result-row"><span style="color:var(--primary);">Diferença mensal</span><span id="ba-r-diff" style="color:var(--primary);">—</span></div>
+      </div>
+    </div>
+  </div>
+  <div class="ad-inline" onclick="adClick('is')"><div class="ad-lbl">Anúncio</div><div class="ad-icon" style="background:linear-gradient(135deg,#f59f00,#f03e3e);">⚡</div><div><div class="ad-title">Ferramenta de precificação avançada</div><div class="ad-sub">Análise completa de custos e margem</div></div><div style="margin-left:auto;font-size:16px;color:var(--muted);">›</div></div>
+  <button class="pro-btn" onclick="showMod('mod-pro')">⭐ Assinar PRO <span class="pro-badge">R$9,90/mês</span></button>
+</div>
+
+<!-- ══ TUTORIAL ══ -->
+<div class="sc" id="sc-tutorial">
+  <div class="tut-hero">
+    <div class="tut-hero-title">📖 Como usar o PreçoCerto</div>
+    <div class="tut-hero-sub">Toque em cada tópico para ver o passo a passo completo</div>
+  </div>
+
+  <div class="tut-section-title">🧮 Calculadora</div>
+
+  <div class="tut-card">
+    <div class="tut-card-hdr" onclick="tglTut('t1')"><div class="tut-card-icon" style="background:#EEF2FF;">💰</div><div><div class="tut-card-title">Por que não é só somar +27%?</div><div class="tut-card-sub">O erro mais comum que custa dinheiro</div></div><div class="tut-arr" id="arr-t1">›</div></div>
+    <div class="tut-body" id="t1">
+      <div class="tut-step"><div class="tut-num">!</div><div class="tut-step-txt"><strong>Errado:</strong> R$18 + 27% = R$22,86. Mas o iFood pega 27% de R$22,86 = R$6,17. Você recebe R$16,69, não R$18!</div></div>
+      <div class="tut-step"><div class="tut-num">✓</div><div class="tut-step-txt"><strong>Correto:</strong> R$18 ÷ (1 - 0,27) = <strong>R$24,66</strong>. O iFood fica com R$6,66 e você recebe exatamente R$18.</div></div>
+      <div class="tut-tip">💡 O PreçoCerto faz esse cálculo automaticamente. Você só digita o que quer receber!</div>
+    </div>
+  </div>
+
+  <div class="tut-card">
+    <div class="tut-card-hdr" onclick="tglTut('t2')"><div class="tut-card-icon" style="background:#EEF2FF;">🧮</div><div><div class="tut-card-title">Aba "Preço a cobrar"</div><div class="tut-card-sub">Modo principal da calculadora</div></div><div class="tut-arr" id="arr-t2">›</div></div>
+    <div class="tut-body" id="t2">
+      <div class="tut-step"><div class="tut-num">1</div><div class="tut-step-txt">Selecione a plataforma nas bolinhas coloridas</div></div>
+      <div class="tut-step"><div class="tut-num">2</div><div class="tut-step-txt">Digite o valor que quer receber limpo na sua mão</div></div>
+      <div class="tut-step"><div class="tut-num">3</div><div class="tut-step-txt">O resultado em azul é o preço a cadastrar no app</div></div>
+      <div class="tut-step"><div class="tut-num">4</div><div class="tut-step-txt">Use os botões + e − para ajustar a comissão do seu contrato</div></div>
+      <div class="tut-tip">💡 Toque em qualquer plataforma na tabela para recalcular automaticamente!</div>
+    </div>
+  </div>
+
+  <div class="tut-card">
+    <div class="tut-card-hdr" onclick="tglTut('t3')"><div class="tut-card-icon" style="background:#E6FBF4;">🔄</div><div><div class="tut-card-title">Aba "Preço inverso"</div><div class="tut-card-sub">Já tem preço no app? Veja o que recebe</div></div><div class="tut-arr" id="arr-t3">›</div></div>
+    <div class="tut-body" id="t3">
+      <div class="tut-step"><div class="tut-num">1</div><div class="tut-step-txt">Acesse a aba "🔄 Preço inverso" na calculadora</div></div>
+      <div class="tut-step"><div class="tut-num">2</div><div class="tut-step-txt">Digite o preço que está cadastrado hoje no iFood</div></div>
+      <div class="tut-step"><div class="tut-num">3</div><div class="tut-step-txt">O app revela quanto você está recebendo líquido de verdade</div></div>
+      <div class="tut-tip">⚠️ Muitos donos ficam surpresos ao descobrir que recebem bem menos do que pensavam!</div>
+    </div>
+  </div>
+
+  <div class="tut-card">
+    <div class="tut-card-hdr" onclick="tglTut('t4')"><div class="tut-card-icon" style="background:#FFF0F0;">🍔</div><div><div class="tut-card-title">Aba "Combo"</div><div class="tut-card-sub">Monte promoções sem perder dinheiro</div></div><div class="tut-arr" id="arr-t4">›</div></div>
+    <div class="tut-body" id="t4">
+      <div class="tut-step"><div class="tut-num">1</div><div class="tut-step-txt">Acesse a aba "🍔 Combo" na calculadora</div></div>
+      <div class="tut-step"><div class="tut-num">2</div><div class="tut-step-txt">Adicione os produtos que vão compor o combo</div></div>
+      <div class="tut-step"><div class="tut-num">3</div><div class="tut-step-txt">O app soma tudo e mostra o preço total a cobrar no app</div></div>
+      <div class="tut-step"><div class="tut-num">4</div><div class="tut-step-txt">Compartilhe o resultado pelo WhatsApp com um toque</div></div>
+      <div class="tut-tip">💡 Ideal para criar promoções "Compre 2 e ganhe desconto" sem perder margem!</div>
+    </div>
+  </div>
+
+  <div class="tut-card">
+    <div class="tut-card-hdr" onclick="tglTut('t5')"><div class="tut-card-icon" style="background:#0A1628;font-size:16px;">🧾</div><div><div class="tut-card-title">Calculadora de lucro real</div><div class="tut-card-sub">Inclua ingredientes, embalagem e mão de obra</div></div><div class="tut-arr" id="arr-t5">›</div></div>
+    <div class="tut-body" id="t5">
+      <div class="tut-step"><div class="tut-num">1</div><div class="tut-step-txt">Após calcular o preço, vá até a seção escura "Lucro real"</div></div>
+      <div class="tut-step"><div class="tut-num">2</div><div class="tut-step-txt">Insira o custo dos ingredientes, embalagem e mão de obra</div></div>
+      <div class="tut-step"><div class="tut-num">3</div><div class="tut-step-txt">O app mostra seu lucro real já descontando tudo</div></div>
+      <div class="tut-tip">⚠️ Se aparecer vermelho, você está vendendo com prejuízo! Reajuste o preço.</div>
+    </div>
+  </div>
+
+  <div class="tut-section-title">📦 Cardápio</div>
+
+  <div class="tut-card">
+    <div class="tut-card-hdr" onclick="tglTut('t6')"><div class="tut-card-icon" style="background:#E6FBF4;">➕</div><div><div class="tut-card-title">Adicionar e editar produtos</div><div class="tut-card-sub">Salve seu cardápio completo</div></div><div class="tut-arr" id="arr-t6">›</div></div>
+    <div class="tut-body" id="t6">
+      <div class="tut-step"><div class="tut-num">1</div><div class="tut-step-txt">Toque no botão <strong>+</strong> azul no canto inferior direito</div></div>
+      <div class="tut-step"><div class="tut-num">2</div><div class="tut-step-txt">Escolha emoji, nome e o preço que quer receber</div></div>
+      <div class="tut-step"><div class="tut-num">3</div><div class="tut-step-txt">Adicione o custo de produção para ver o lucro por produto</div></div>
+      <div class="tut-step"><div class="tut-num">4</div><div class="tut-step-txt">Mude a plataforma pelas bolinhas para ver os preços de cada app</div></div>
+      <div class="tut-tip">💡 Toque em qualquer produto para editar ou excluir.</div>
+    </div>
+  </div>
+
+  <div class="tut-section-title">🕐 Histórico</div>
+  <div class="tut-card">
+    <div class="tut-card-hdr" onclick="tglTut('t7')"><div class="tut-card-icon" style="background:#FFF8E1;">🕐</div><div><div class="tut-card-title">Histórico de cálculos</div><div class="tut-card-sub">Reveja qualquer cálculo anterior</div></div><div class="tut-arr" id="arr-t7">›</div></div>
+    <div class="tut-body" id="t7">
+      <div class="tut-step"><div class="tut-num">1</div><div class="tut-step-txt">Todo cálculo feito na aba "Preço a cobrar" é salvo automaticamente</div></div>
+      <div class="tut-step"><div class="tut-num">2</div><div class="tut-step-txt">Acesse o ícone de relógio no menu inferior para ver o histórico</div></div>
+      <div class="tut-step"><div class="tut-num">3</div><div class="tut-step-txt">Você pode excluir itens do histórico tocando no ✕</div></div>
+      <div class="tut-tip">💡 O histórico fica salvo na nuvem quando você tem uma conta!</div>
+    </div>
+  </div>
+
+  <div class="tut-section-title">📊 Simulador</div>
+  <div class="tut-card">
+    <div class="tut-card-hdr" onclick="tglTut('t8')"><div class="tut-card-icon" style="background:#FFF8E1;">📊</div><div><div class="tut-card-title">Simulador de lucro mensal</div><div class="tut-card-sub">Projete seu faturamento</div></div><div class="tut-arr" id="arr-t8">›</div></div>
+    <div class="tut-body" id="t8">
+      <div class="tut-step"><div class="tut-num">1</div><div class="tut-step-txt">Insira sua média de pedidos/dia, ticket médio e dias trabalhados</div></div>
+      <div class="tut-step"><div class="tut-num">2</div><div class="tut-step-txt">Veja quanto lucra em cada plataforma separadamente</div></div>
+      <div class="tut-step"><div class="tut-num">3</div><div class="tut-step-txt">Use a aba "Antes/Depois" para simular o impacto de um reajuste</div></div>
+      <div class="tut-tip">💡 A plataforma "Próprio" com 0% sempre ganha — vale calcular se ter um sistema próprio compensa!</div>
+    </div>
+  </div>
+
+  <div class="tut-section-title">⚙️ Configurações</div>
+  <div class="tut-card">
+    <div class="tut-card-hdr" onclick="tglTut('t9')"><div class="tut-card-icon" style="background:var(--s2);">⚙️</div><div><div class="tut-card-title">Ajustar comissões e plataformas</div><div class="tut-card-sub">Personalize para o seu contrato</div></div><div class="tut-arr" id="arr-t9">›</div></div>
+    <div class="tut-body" id="t9">
+      <div class="tut-step"><div class="tut-num">1</div><div class="tut-step-txt">Vá em ⚙️ Config no menu inferior</div></div>
+      <div class="tut-step"><div class="tut-num">2</div><div class="tut-step-txt">Toque em cada plataforma para ajustar a comissão do seu contrato específico</div></div>
+      <div class="tut-step"><div class="tut-num">3</div><div class="tut-step-txt">Use os botões + e − para ajustar de 1% em 1%</div></div>
+      <div class="tut-step"><div class="tut-num">4</div><div class="tut-step-txt">Desative plataformas que você não usa para deixar o app mais limpo</div></div>
+      <div class="tut-tip">💡 As comissões variam por contrato. Sempre verifique no seu painel do iFood!</div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ CONFIG ══ -->
+<div class="sc" id="sc-config">
+  <div class="page-title">Configurações</div>
+  <div class="page-sub">Conta e plataformas</div>
+  <div class="ucrd" id="user-card">
+    <div class="uav"><svg viewBox="0 0 20 20" width="20" height="20" fill="none"><circle cx="10" cy="7" r="3.5" stroke="white" stroke-width="1.8"/><path d="M3 17c0-3.5 3.1-6 7-6s7 2.5 7 6" stroke="white" stroke-width="1.8" stroke-linecap="round"/></svg></div>
+    <div><div class="uemail" id="cfg-email">—</div><div class="uplan">Plano gratuito · dados salvos na nuvem ☁️</div></div>
+    <button class="ulout" onclick="window.doLogout&&window.doLogout()">Sair</button>
+  </div>
+  <div id="plat-cfg"></div>
+  <div class="ad-inline" onclick="adClick('icfg')" style="margin-bottom:11px;"><div class="ad-lbl">Anúncio</div><div class="ad-icon" style="background:linear-gradient(135deg,#f093fb,#f5576c);">📱</div><div><div class="ad-title">Cardápio Digital Grátis</div><div class="ad-sub">Link próprio para pedidos sem comissão</div></div><div style="margin-left:auto;font-size:16px;color:var(--muted);">›</div></div>
+  <button class="pro-btn" onclick="showMod('mod-pro')">⭐ Assinar PRO <span class="pro-badge">R$9,90/mês</span></button>
+  <button class="del-acc" onclick="deleteAcc()">🗑️ Excluir minha conta e dados (LGPD)</button>
+  <div style="text-align:center;font-size:11px;color:var(--muted);padding:8px 0 4px;">PreçoCerto v2.1 · Calculadora para Delivery</div>
+</div>
+
+<!-- STICKY AD -->
+<div class="ad-sticky" id="sticky-ad" onclick="adClick('sticky')">
+  <div class="as-lbl">ANÚNCIO</div>
+  <div class="as-icon" style="background:linear-gradient(135deg,#fa709a,#fee140);">🎁</div>
+  <div><div class="as-tt">Aumente seu ticket médio</div><div class="as-sb">Embalagens especiais para fidelizar</div></div>
+  <div class="as-cta">Ver →</div>
+</div>
+
+<button class="fab" id="fab" onclick="openAddProd()">
+  <svg viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="white" stroke-width="2.5" stroke-linecap="round"/></svg>
+</button>
+
+<!-- BOTTOM NAV -->
+<nav class="bnav">
+  <button class="bni on" id="bn-calc" onclick="showScreen('calc')">
+    <svg viewBox="0 0 20 20" fill="none"><circle cx="10" cy="10" r="7.5" stroke="currentColor" stroke-width="1.8"/><text x="6.5" y="13.5" font-family="Inter" font-weight="800" font-size="7" fill="currentColor">R$</text></svg>Calcular
+  </button>
+  <button class="bni" id="bn-products" onclick="showScreen('products')">
+    <svg viewBox="0 0 20 20" fill="none"><rect x="2.5" y="2.5" width="15" height="15" rx="2.5" stroke="currentColor" stroke-width="1.8"/><path d="M6 7h8M6 10h8M6 13h5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>Cardápio
+  </button>
+  <button class="bni" id="bn-history" onclick="showScreen('history')">
+    <svg viewBox="0 0 20 20" fill="none"><circle cx="10" cy="10" r="7.5" stroke="currentColor" stroke-width="1.8"/><path d="M10 6v4l2.5 2.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>Histórico
+  </button>
+  <button class="bni" id="bn-simulate" onclick="showScreen('simulate')">
+    <svg viewBox="0 0 20 20" fill="none"><path d="M2.5 14.5l4.5-5 3.5 3.5 7-9" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>Simular
+  </button>
+  <button class="bni" id="bn-tutorial" onclick="showScreen('tutorial')">
+    <svg viewBox="0 0 20 20" fill="none"><circle cx="10" cy="10" r="7.5" stroke="currentColor" stroke-width="1.8"/><path d="M10 7v3M10 13v.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>Ajuda
+  </button>
+  <button class="bni" id="bn-config" onclick="showScreen('config')">
+    <svg viewBox="0 0 20 20" fill="none"><circle cx="10" cy="10" r="2.5" stroke="currentColor" stroke-width="1.8"/><path d="M10 2v1.5M10 16.5V18M3.5 10H2M18 10h-1.5M5.05 5.05l1.06 1.06M13.89 13.89l1.06 1.06M5.05 14.95l1.06-1.06M13.89 6.11l1.06-1.06" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>Config
+  </button>
+</nav>
+
+<!-- MODAL PRODUTO -->
+<div class="mo" id="mod-prod">
+  <div class="md">
+    <div class="mh"></div>
+    <div class="mtt" id="mptt">Adicionar Produto</div>
+    <div class="egrid" id="egrid"></div>
+    <div class="mfld"><label class="mlbl">Nome do produto</label><input class="minp" type="text" id="mp-name" placeholder="Ex: Pizza Calabresa"/></div>
+    <div class="mfld"><label class="mlbl">Preço que quero receber (R$)</label><input class="minp" type="number" id="mp-price" placeholder="18,00" step="0.50"/></div>
+    <div class="mfld"><label class="mlbl">Custo de produção (R$) — opcional</label><input class="minp" type="number" id="mp-cost" placeholder="7,00" step="0.50"/></div>
+    <button class="sbtn" onclick="saveProd()">Salvar produto</button>
+    <button class="dbtn" id="dbtn" onclick="delProd()">🗑️ Excluir produto</button>
+  </div>
+</div>
+
+<!-- MODAL COMBO ADD -->
+<div class="mo" id="mod-combo">
+  <div class="md">
+    <div class="mh"></div>
+    <div class="mtt">Adicionar ao Combo</div>
+    <div class="egrid" id="combo-egrid"></div>
+    <div class="mfld"><label class="mlbl">Nome do item</label><input class="minp" type="text" id="combo-name" placeholder="Ex: Refrigerante"/></div>
+    <div class="mfld"><label class="mlbl">Preço que quero receber (R$)</label><input class="minp" type="number" id="combo-price" placeholder="8,00" step="0.50"/></div>
+    <button class="sbtn" onclick="addComboItem()">Adicionar ao combo</button>
+  </div>
+</div>
+
+<!-- MODAL ANUNCIE AQUI -->
+<div class="mo" id="mod-anuncie">
+  <div class="md">
+    <div class="mh"></div>
+    <div style="text-align:center;margin-bottom:16px;">
+      <div style="font-size:42px;margin-bottom:10px;">📢</div>
+      <div style="font-family:'Syne',sans-serif;font-size:20px;font-weight:800;margin-bottom:5px;">Anuncie no PreçoCerto</div>
+      <div style="font-size:13px;color:var(--muted);line-height:1.5;">Alcance donos de delivery ativos que usam o app todo dia para precificar seus produtos.</div>
+    </div>
+
+    <!-- PLANOS -->
+    <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;color:var(--muted);margin-bottom:10px;">Escolha um plano</div>
+    <div class="anuncie-plans">
+      <div class="anuncie-plan selected" id="plan-basic" onclick="selectPlan('basic')">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+          <div>
+            <div class="anuncie-plan-name">🥉 Básico</div>
+            <div class="anuncie-plan-desc">Banner no rodapé · 30 dias · ~50k impressões</div>
+          </div>
+          <div class="anuncie-plan-price">R$97</div>
+        </div>
+      </div>
+      <div class="anuncie-plan" id="plan-pro" onclick="selectPlan('pro-ad')">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+          <div>
+            <div class="anuncie-plan-name">🥈 Destaque</div>
+            <div class="anuncie-plan-desc">Banner inline + topo · 30 dias · ~150k impressões</div>
+          </div>
+          <div class="anuncie-plan-price">R$247</div>
+        </div>
+      </div>
+      <div class="anuncie-plan" id="plan-premium" onclick="selectPlan('premium')">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+          <div>
+            <div class="anuncie-plan-name">🥇 Premium</div>
+            <div class="anuncie-plan-desc">Intersticial + todos os banners · 30 dias · ~500k impressões</div>
+          </div>
+          <div class="anuncie-plan-price">R$597</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="anuncie-form-field">
+      <label class="anuncie-form-lbl">Seu nome</label>
+      <input class="anuncie-form-inp" type="text" id="ad-name" placeholder="Ex: João Silva"/>
+    </div>
+    <div class="anuncie-form-field">
+      <label class="anuncie-form-lbl">WhatsApp para contato</label>
+      <input class="anuncie-form-inp" type="tel" id="ad-phone" placeholder="(11) 99999-9999"/>
+    </div>
+    <div class="anuncie-form-field">
+      <label class="anuncie-form-lbl">Produto ou serviço anunciado</label>
+      <input class="anuncie-form-inp" type="text" id="ad-product" placeholder="Ex: Embalagens para delivery"/>
+    </div>
+
+    <button class="sbtn" onclick="submitAnuncio()" style="margin-bottom:9px;">
+      📩 Solicitar proposta gratuita
+    </button>
+    <button onclick="closeMod('mod-anuncie')" style="width:100%;padding:8px;background:none;border:none;color:var(--muted);cursor:pointer;font-family:'Inter',sans-serif;font-size:12px;">Fechar</button>
+  </div>
+</div>
+
+<!-- MODAL PRO -->
+<div class="mo" id="mod-pro">
+  <div class="md">
+    <div class="mh"></div>
+    <div style="text-align:center;margin-bottom:16px;"><svg viewBox="0 0 56 56" width="56" height="56" style="margin:0 auto 10px;display:block;"><circle cx="28" cy="28" r="26" fill="var(--pl)"/><path d="M28 10l4.7 9.4 10.3 1.5-7.5 7.3 1.8 10.4L28 34l-9.3 4.6 1.8-10.4-7.5-7.3 10.3-1.5z" fill="var(--primary)"/></svg><div style="font-family:'Syne',sans-serif;font-size:20px;font-weight:800;margin-bottom:5px;">PreçoCerto PRO</div><div style="font-size:13px;color:var(--muted);line-height:1.5;">Remova anúncios e desbloqueie tudo</div></div>
+    <div style="background:var(--bg);border-radius:var(--r);padding:13px;margin-bottom:14px;display:flex;flex-direction:column;gap:8px;">
+      <div style="display:flex;align-items:center;gap:9px;font-size:13px;">✅ Sem nenhum anúncio</div>
+      <div style="display:flex;align-items:center;gap:9px;font-size:13px;">✅ Exportar tabela PDF para iFood</div>
+      <div style="display:flex;align-items:center;gap:9px;font-size:13px;">✅ Histórico ilimitado de cálculos</div>
+      <div style="display:flex;align-items:center;gap:9px;font-size:13px;">✅ Alertas de mudança de comissão</div>
+      <div style="display:flex;align-items:center;gap:9px;font-size:13px;">✅ Backup completo na nuvem</div>
+    </div>
+    <button class="sbtn" style="margin-bottom:8px;" onclick="alert('Em breve! Obrigado pelo interesse 🙏');closeMod('mod-pro')">Assinar por R$9,90/mês</button>
+    <button onclick="closeMod('mod-pro')" style="width:100%;padding:8px;background:none;border:none;color:var(--muted);cursor:pointer;font-family:'Inter',sans-serif;font-size:12px;">Continuar com anúncios</button>
+  </div>
+</div>
+
+<!-- PWA INSTALL MODAL -->
+<div class="pwa-overlay" id="pwa-overlay">
+  <div class="pwa-card">
+    <div class="pwa-handle"></div>
+    <div class="pwa-header">
+      <svg class="pwa-app-icon" viewBox="0 0 56 56" fill="none"><rect width="56" height="56" rx="14" fill="url(#pig)"/><defs><linearGradient id="pig" x1="0" y1="0" x2="56" y2="56"><stop stop-color="#1B4FFF"/><stop offset="1" stop-color="#0D2ECC"/></linearGradient></defs><path d="M16 38l7-7 5 5 8-10 6 6" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/><circle cx="20" cy="19" r="6" fill="rgba(255,255,255,0.15)" stroke="white" stroke-width="1.5"/><text x="16.5" y="22.5" font-family="Inter" font-weight="800" font-size="7.5" fill="white">R$</text></svg>
+      <div>
+        <div class="pwa-app-name">PreçoCerto</div>
+        <div class="pwa-app-sub">Calculadora para Delivery</div>
+      </div>
+    </div>
+
+    <div class="pwa-native-banner" id="pwa-native-banner">
+      📲 Seu navegador suporta instalação direta!
+    </div>
+
+    <div class="pwa-desc">Adicione o PreçoCerto na sua tela inicial e acesse com um toque — igual a um app de verdade, sem precisar abrir o navegador.</div>
+
+    <div class="pwa-os-tabs">
+      <button class="pwa-os-tab on" id="ptab-android" onclick="switchPwaTab('android')">🤖 Android</button>
+      <button class="pwa-os-tab" id="ptab-ios" onclick="switchPwaTab('ios')">🍎 iPhone</button>
+    </div>
+
+    <!-- ANDROID -->
+    <div class="pwa-os-panel on" id="ppanel-android">
+      <div class="pwa-steps">
+        <div class="pwa-step"><div class="pwa-step-num">1</div><div class="pwa-step-text">Toque nos <strong>3 pontinhos ⋮</strong> no canto superior direito do Chrome</div></div>
+        <div class="pwa-step"><div class="pwa-step-num">2</div><div class="pwa-step-text">Selecione <strong>"Adicionar à tela inicial"</strong> ou <strong>"Instalar app"</strong></div></div>
+        <div class="pwa-step"><div class="pwa-step-num">3</div><div class="pwa-step-text">Toque em <strong>"Adicionar"</strong> na caixa que aparecer</div></div>
+        <div class="pwa-step"><div class="pwa-step-num">✓</div><div class="pwa-step-text">O ícone do PreçoCerto vai aparecer na sua tela inicial! 🎉</div></div>
+      </div>
+    </div>
+
+    <!-- iOS -->
+    <div class="pwa-os-panel" id="ppanel-ios">
+      <div class="pwa-steps">
+        <div class="pwa-step"><div class="pwa-step-num">1</div><div class="pwa-step-text">Toque no ícone de <strong>compartilhar ⎋</strong> na barra inferior do Safari</div></div>
+        <div class="pwa-step"><div class="pwa-step-num">2</div><div class="pwa-step-text">Role para baixo e toque em <strong>"Adicionar à Tela de Início"</strong></div></div>
+        <div class="pwa-step"><div class="pwa-step-num">3</div><div class="pwa-step-text">Toque em <strong>"Adicionar"</strong> no canto superior direito</div></div>
+        <div class="pwa-step"><div class="pwa-step-num">✓</div><div class="pwa-step-text">O ícone do PreçoCerto vai aparecer na sua tela inicial! 🎉</div></div>
+      </div>
+    </div>
+
+    <button class="pwa-install-btn" id="pwa-install-btn" onclick="triggerInstall()">
+      📲 Adicionar à tela inicial
+    </button>
+    <button class="pwa-later-btn" onclick="closePwa(true)">Agora não, talvez depois</button>
+    <button class="pwa-later-btn" style="color:var(--danger);font-size:11px;" onclick="closePwa(false)">Não mostrar novamente</button>
+  </div>
+</div>
+
+<!-- RATING MODAL -->
+<div class="rating-overlay" id="rating-overlay">
+  <div class="rating-card">
+    <div class="rating-emoji">⭐</div>
+    <div class="rating-title">Gostando do PreçoCerto?</div>
+    <div class="rating-sub">Sua avaliação ajuda outros donos de delivery a encontrar o app e nos ajuda a melhorar cada vez mais!</div>
+    <div class="stars" id="stars">
+      <span class="star" onclick="rateStar(1)">⭐</span>
+      <span class="star" onclick="rateStar(2)">⭐</span>
+      <span class="star" onclick="rateStar(3)">⭐</span>
+      <span class="star" onclick="rateStar(4)">⭐</span>
+      <span class="star" onclick="rateStar(5)">⭐</span>
+    </div>
+    <button class="rating-cta" id="rating-cta" onclick="submitRating()">Avaliar agora 🙏</button>
+    <button class="rating-skip" onclick="closeRating()">Agora não, talvez depois</button>
+  </div>
+</div>
+
+<!-- INTERSTITIAL -->
+<div class="ito" id="ito">
+  <div class="itc">
+    <div class="itimg" style="background:linear-gradient(135deg,var(--primary),var(--pd));">🚀</div>
+    <div class="itbody">
+      <div class="it-albl">Anúncio patrocinado</div>
+      <div class="it-tt">Gerencie todos seus pedidos</div>
+      <div class="it-ds">Sistema completo de delivery: cardápio, pedidos e relatórios. 7 dias grátis.</div>
+      <div class="it-timer" id="it-timer">Fechar em 5s</div>
+      <button class="it-cta" style="background:linear-gradient(135deg,var(--primary),var(--pd));" onclick="adClick('inter');closeIto()">Conhecer agora →</button>
+      <button class="it-skip" id="it-skip" disabled onclick="closeIto()">Pular anúncio</button>
+    </div>
+  </div>
+</div>
+
+<script>
+let platforms=[
+  {id:'ifood',name:'iFood',comm:27,color:'#EA1D2C',emoji:'🍕',active:true},
+  {id:'rappi',name:'Rappi',comm:20,color:'#FF441F',emoji:'🛵',active:true},
+  {id:'aiqfome',name:'Aiqfome',comm:12,color:'#F5A623',emoji:'🍔',active:true},
+  {id:'ze',name:'Zé Delivery',comm:15,color:'#DDAA00',emoji:'🍺',active:false},
+  {id:'proprio',name:'Próprio',comm:0,color:'#00B87A',emoji:'🏪',active:true},
+];
+let products=[],calcHistory=[],comboItems=[],comboSelEmoji='🍕';
+let calcPlat='ifood',prodPlat='ifood',revPlat='ifood',comboPlat='ifood';
+let editId=null,selEmoji='🍕',adCnt=0,itoTimer=null;
+let calcComm=27,revComm=27;
+let ratingStars=0;
+const EMOJIS=['🍕','🍔','🍗','🥩','🌮','🍱','🍜','🥗','🍣','🍰','🧁','🥐','🍺','🥤','🧃','☕','🍦','🍟','🥪','🌯'];
+
+// AUTH
+let authMode='in';
+function switchTab(m){authMode=m;document.getElementById('tab-in').className='atab'+(m==='in'?' on':'');document.getElementById('tab-reg').className='atab'+(m==='reg'?' on':'');document.getElementById('abtn').textContent=m==='in'?'Entrar':'Criar conta';document.getElementById('aerr').style.display='none';}
+function showAErr(msg){const e=document.getElementById('aerr');e.textContent=msg;e.style.display='block';const b=document.getElementById('abtn');b.disabled=false;b.textContent=authMode==='in'?'Entrar':'Criar conta';}
+async function submitAuth(){
+  const email=document.getElementById('aemail').value.trim(),pass=document.getElementById('apass').value;
+  if(!email||!pass){showAErr('Preencha e-mail e senha.');return;}
+  if(!window.doLogin){showAErr('Aguarde carregar...');return;}
+  const b=document.getElementById('abtn');b.disabled=true;b.textContent='Aguarde...';
+  document.getElementById('aerr').style.display='none';
+  await window.doLogin(email,pass,authMode==='reg');
+}
+function skipAuth(){document.getElementById('auth-screen').style.display='none';if(!localStorage.getItem('pc_ob_done'))document.getElementById('onboarding').style.display='flex';}
+function closeOB(){
+  document.getElementById('onboarding').style.display='none';
+  localStorage.setItem('pc_ob_done','1');
+  // Show auth screen to create account
+  document.getElementById('auth-screen').style.display='flex';
+  // Switch to register tab
+  switchTab('reg');
+}
+function closeOBSkip(){
+  document.getElementById('onboarding').style.display='none';
+  localStorage.setItem('pc_ob_done','1');
+  // Show auth screen normally
+  document.getElementById('auth-screen').style.display='flex';
+  switchTab('in');
+}
+
+// SYNC
+function setSyncSaving(){document.getElementById('sdot').className='sdot saving';}
+function setSyncOk(){document.getElementById('sdot').className='sdot';}
+function setSyncErr(){document.getElementById('sdot').className='sdot err';}
+
+// REAJUSTE ALERT
+function checkReajuste(){
+  const last=parseInt(localStorage.getItem('pc_last_calc')||'0');
+  const days=(Date.now()-last)/(1000*60*60*24);
+  const card=document.getElementById('reajuste-card');
+  if(last>0&&days>30){
+    card.style.display='block';
+    document.getElementById('reaj-sub').textContent=`Faz ${Math.floor(days)} dias desde o último cálculo. Com a inflação acumulada, pode estar na hora de revisar seus preços!`;
+  }
+}
+function dismissReajuste(){
+  document.getElementById('reajuste-card').style.display='none';
+  localStorage.setItem('pc_reaj_dismissed',Date.now());
+}
+
+// SCREENS
+function showScreen(n){
+  document.querySelectorAll('.sc').forEach(s=>s.classList.remove('on'));
+  document.querySelectorAll('.bni').forEach(b=>b.classList.remove('on'));
+  document.getElementById('sc-'+n).classList.add('on');
+  const bn=document.getElementById('bn-'+n);if(bn)bn.classList.add('on');
+  document.getElementById('fab').style.display=n==='products'?'flex':'none';
+  document.getElementById('sticky-ad').style.display=(n==='config'||n==='tutorial')?'none':'flex';
+  if(n==='config'){const uc=document.getElementById('user-card');if(window._user){uc.style.display='flex';document.getElementById('cfg-email').textContent=window._user.email;}else uc.style.display='none';}
+  if(n==='history')renderHistory();
+}
+
+// CALC TABS
+function switchCalcTab(tab){
+  ['normal','reverse','combo'].forEach(t=>{
+    document.getElementById('stab-'+t).className='stab'+(t===tab?' on':'');
+    document.getElementById('panel-'+t).className='stab-panel'+(t===tab?' on':'');
+  });
+}
+
+// SIM TABS
+function switchSimTab(tab){
+  ['sim','ba'].forEach(t=>{
+    document.getElementById('stab-'+t).className='stab'+(t===tab?' on':'');
+    document.getElementById('panel-'+t).className='stab-panel'+(t===tab?' on':'');
+  });
+}
+
+// PILLS
+function renderPills(cid,ctx){
+  const c=document.getElementById(cid);if(!c)return;c.innerHTML='';
+  platforms.filter(p=>p.active).forEach(p=>{
+    const d=document.createElement('div');
+    const cur={'calc':calcPlat,'products':prodPlat,'reverse':revPlat,'combo':comboPlat}[ctx];
+    d.className='pill'+(p.id===cur?' on':'');
+    d.innerHTML=`<div class="pd" style="background:${p.color}"></div>${p.name}`;
+    d.onclick=()=>{
+      if(ctx==='calc'){calcPlat=p.id;calcComm=p.comm;renderPills(cid,ctx);calculate();}
+      else if(ctx==='reverse'){revPlat=p.id;revComm=p.comm;renderPills(cid,ctx);calcReverse();}
+      else if(ctx==='combo'){comboPlat=p.id;renderPills(cid,ctx);calcComboResult();}
+      else{prodPlat=p.id;renderPills(cid,ctx);renderProds();}
+    };
+    c.appendChild(d);
+  });
+}
+
+// STEP COMM
+function stepComm(delta){
+  calcComm=Math.min(45,Math.max(0,calcComm+delta));
+  document.getElementById('cval').textContent=calcComm+'%';
+  document.getElementById('step-disp').textContent=calcComm+'%';
+  document.getElementById('cname').textContent=platforms.find(p=>p.id===calcPlat)?.name||'';
+  calculate();
+}
+function stepRevComm(delta){
+  revComm=Math.min(45,Math.max(0,revComm+delta));
+  document.getElementById('rev-cval').textContent=revComm+'%';
+  document.getElementById('rev-step-disp').textContent=revComm+'%';
+  calcReverse();
+}
+
+// CALC NORMAL
+function cpx(net,comm){return net<=0?null:net/(1-comm/100);}
+function calculate(){
+  const net=parseFloat(document.getElementById('price-in').value)||0;
+  if(!net||net<=0){document.getElementById('rprice').textContent='R$ —';document.getElementById('rsub').textContent='Insira o preço acima para calcular';document.getElementById('bd').style.display='none';document.getElementById('warn').classList.add('hide');document.getElementById('ract').style.display='none';renderCT(null);calcProfit();return;}
+  const app=cpx(net,calcComm),cv=app-net,marg=(net/app*100).toFixed(1);
+  document.getElementById('rprice').textContent=`R$ ${f(app)}`;
+  document.getElementById('rsub').textContent=`Você recebe R$ ${f(net)} líquido`;
+  document.getElementById('bd-app').textContent=`R$ ${f(app)}`;
+  document.getElementById('bd-comm').textContent=`- R$ ${f(cv)}`;
+  document.getElementById('bd-pct').textContent=calcComm+'%';
+  document.getElementById('bd-net').textContent=`R$ ${f(net)}`;
+  document.getElementById('bd-marg').textContent=`${marg}%`;
+  document.getElementById('bd').style.display='block';document.getElementById('ract').style.display='flex';
+  if(calcComm>=35){document.getElementById('warn').classList.remove('hide');document.getElementById('warn-txt').textContent=`Comissão de ${calcComm}% é muito alta! Precisa marcar ${((1/(1-calcComm/100)-1)*100).toFixed(0)}% acima do preço desejado.`;}else document.getElementById('warn').classList.add('hide');
+  renderCT(net);calcProfit();
+  // Save to history
+  saveToHistory({net,app,comm:calcComm,plat:calcPlat});
+  localStorage.setItem('pc_last_calc',Date.now());
+  // Ask for rating after 3rd and 10th real calculation
+  let calcs=parseInt(localStorage.getItem('pc_calc_count')||'0')+1;
+  localStorage.setItem('pc_calc_count',calcs);
+  if((calcs===3||calcs===10)&&!localStorage.getItem('pc_rated')) setTimeout(showRating,1500);
+}
+function calcProfit(){
+  const net=parseFloat(document.getElementById('price-in').value)||0;
+  const tot=(parseFloat(document.getElementById('c-ingr').value)||0)+(parseFloat(document.getElementById('c-pack').value)||0)+(parseFloat(document.getElementById('c-labor').value)||0);
+  const cr=document.getElementById('cost-res'),cv=document.getElementById('cost-resv');
+  if(!net||!tot){cr.style.display='none';return;}
+  const p=net-tot;cr.style.display='flex';cv.textContent=`R$ ${f(p)}`;cv.className='cost-resv '+(p>=0?'pok':'pbad');
+}
+function renderCT(net){
+  const t=document.getElementById('ctbody');t.innerHTML='';
+  platforms.filter(p=>p.active).forEach(p=>{
+    const px=net?cpx(net,p.comm):null;const r=document.createElement('div');r.className='crow'+(p.id===calcPlat?' on':'');
+    r.innerHTML=`<div class="plnm"><div class="pd" style="background:${p.color}"></div>${p.name}</div><div class="cpx">${px?'R$ '+f(px):'—'}</div><span class="cbadge">${p.comm}%</span>`;
+    r.onclick=()=>{calcPlat=p.id;calcComm=p.comm;document.getElementById('cval').textContent=p.comm+'%';document.getElementById('step-disp').textContent=p.comm+'%';document.getElementById('cname').textContent=p.name;renderPills('pills-calc','calc');calculate();};
+    t.appendChild(r);
+  });
+}
+function shareResult(){
+  const net=parseFloat(document.getElementById('price-in').value)||0;if(!net)return;
+  let txt=`📊 *Tabela de Preços — PreçoCerto*\n\n💰 Receber: R$ ${f(net)}\n\n`;
+  platforms.filter(p=>p.active).forEach(p=>{txt+=`${p.emoji} ${p.name} (${p.comm}%): R$ ${f(cpx(net,p.comm))}\n`;});
+  txt+=`\n_Calculado com PreçoCerto_`;
+  if(navigator.share)navigator.share({title:'PreçoCerto',text:txt});
+  else navigator.clipboard.writeText(txt).then(()=>alert('✅ Copiado! Cole no WhatsApp.'));
+}
+function saveAsProduct(){const net=parseFloat(document.getElementById('price-in').value)||0;if(!net)return;editId=null;selEmoji='🍕';document.getElementById('mp-name').value='';document.getElementById('mp-price').value=net;document.getElementById('mp-cost').value='';document.getElementById('mptt').textContent='Salvar como produto';document.getElementById('dbtn').style.display='none';renderEGrid();showMod('mod-prod');}
+
+// REVERSE CALC
+function calcReverse(){
+  const app=parseFloat(document.getElementById('rev-price').value)||0;
+  const bd=document.getElementById('rev-bd');
+  if(!app||app<=0){document.getElementById('rev-result').textContent='R$ —';document.getElementById('rev-sub').textContent='Insira o preço cadastrado para calcular';bd.style.display='none';return;}
+  const net=app*(1-revComm/100),cv=app-net,marg=(net/app*100).toFixed(1);
+  document.getElementById('rev-result').textContent=`R$ ${f(net)}`;
+  document.getElementById('rev-sub').textContent=`Preço no app: R$ ${f(app)} · Comissão: ${revComm}%`;
+  document.getElementById('rev-bd-app').textContent=`R$ ${f(app)}`;
+  document.getElementById('rev-bd-comm').textContent=`- R$ ${f(cv)} (${revComm}%)`;
+  document.getElementById('rev-bd-net').textContent=`R$ ${f(net)}`;
+  document.getElementById('rev-bd-marg').textContent=`${marg}%`;
+  bd.style.display='block';
+}
+
+// COMBO
+function openAddCombo(){selComboEmoji='🍕';renderComboEGrid();showMod('mod-combo');}
+let selComboEmoji='🍕';
+function renderComboEGrid(){
+  const g=document.getElementById('combo-egrid');g.innerHTML='';
+  EMOJIS.forEach(e=>{const b=document.createElement('button');b.className='eopt'+(e===selComboEmoji?' on':'');b.textContent=e;b.onclick=()=>{selComboEmoji=e;renderComboEGrid();};g.appendChild(b);});
+}
+function addComboItem(){
+  const name=document.getElementById('combo-name').value.trim(),price=parseFloat(document.getElementById('combo-price').value);
+  if(!name||!price){alert('Preencha nome e preço!');return;}
+  comboItems.push({id:Date.now(),emoji:selComboEmoji,name,price});
+  closeMod('mod-combo');renderComboItems();calcComboResult();
+}
+function renderComboItems(){
+  const c=document.getElementById('combo-items');c.innerHTML='';
+  comboItems.forEach(item=>{
+    const d=document.createElement('div');d.className='combo-item';
+    d.innerHTML=`<span class="combo-em">${item.emoji}</span><span class="combo-name">${item.name}</span><span class="combo-price">R$ ${f(item.price)}</span><button class="combo-del" onclick="removeComboItem(${item.id})">✕</button>`;
+    c.appendChild(d);
+  });
+}
+function removeComboItem(id){comboItems=comboItems.filter(i=>i.id!==id);renderComboItems();calcComboResult();}
+function calcComboResult(){
+  const res=document.getElementById('combo-result');
+  if(!comboItems.length){res.style.display='none';return;}
+  const totalNet=comboItems.reduce((s,i)=>s+i.price,0);
+  const plat=platforms.find(p=>p.id===comboPlat)||platforms[0];
+  const appPrice=cpx(totalNet,plat.comm);
+  res.style.display='block';
+  document.getElementById('combo-total').textContent=`R$ ${f(appPrice)}`;
+  document.getElementById('combo-sub').textContent=`Você recebe R$ ${f(totalNet)} líquido · ${plat.name} ${plat.comm}%`;
+}
+function clearCombo(){comboItems=[];renderComboItems();document.getElementById('combo-result').style.display='none';}
+function shareCombo(){
+  if(!comboItems.length)return;
+  const plat=platforms.find(p=>p.id===comboPlat)||platforms[0];
+  const totalNet=comboItems.reduce((s,i)=>s+i.price,0);
+  const appPrice=cpx(totalNet,plat.comm);
+  let txt=`🍔 *Combo PreçoCerto*\n\n`;
+  comboItems.forEach(i=>{txt+=`${i.emoji} ${i.name}: R$ ${f(i.price)}\n`;});
+  txt+=`\n📋 Total no ${plat.name}: R$ ${f(appPrice)}\n💰 Você recebe: R$ ${f(totalNet)}\n\n_Calculado com PreçoCerto_`;
+  if(navigator.share)navigator.share({title:'Combo PreçoCerto',text:txt});
+  else navigator.clipboard.writeText(txt).then(()=>alert('✅ Copiado!'));
+}
+
+// HISTORY
+function saveToHistory(entry){
+  const plat=platforms.find(p=>p.id===entry.plat);
+  const h={id:String(Date.now()),net:entry.net,app:entry.app,comm:entry.comm,platId:entry.plat,platName:plat?.name||'',ts:Date.now()};
+  calcHistory.unshift(h);if(calcHistory.length>50)calcHistory.pop();
+  renderHistory();
+  if(window.fbSaveHistory)window.fbSaveHistory(h);
+}
+function renderHistory(){
+  const list=document.getElementById('hist-list');if(!list)return;
+  if(!calcHistory.length){list.innerHTML=`<div class="empty-st"><div class="empty-em">🕐</div><div class="empty-tt">Nenhum histórico ainda</div><div class="empty-ds">Seus cálculos aparecerão aqui automaticamente.</div></div>`;return;}
+  list.innerHTML='';
+  calcHistory.forEach(h=>{
+    const d=document.createElement('div');d.className='hist-item';
+    const date=new Date(h.ts);const dateStr=date.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
+    d.innerHTML=`<div class="hist-icon">💰</div><div class="hist-info"><div class="hist-name">Receber R$ ${f(h.net)}</div><div class="hist-meta">${h.platName} ${h.comm}% · ${dateStr}</div></div><div class="hist-price"><div class="hist-app">R$ ${f(h.app)}</div><div class="hist-net">no app</div></div><button class="hist-del" onclick="delHistory('${h.id}')">✕</button>`;
+    list.appendChild(d);
+  });
+}
+function delHistory(id){
+  calcHistory=calcHistory.filter(h=>h.id!==id);
+  renderHistory();
+  if(window.fbDelHistory)window.fbDelHistory(id);
+}
+
+// PRODUCTS
+function renderProds(){
+  const list=document.getElementById('prod-list');list.innerHTML='';
+  const plat=platforms.find(p=>p.id===prodPlat);if(!plat)return;
+  if(!products.length){list.innerHTML=`<div class="empty-st"><div class="empty-em">📦</div><div class="empty-tt">Nenhum produto ainda</div><div class="empty-ds">Toque no <strong>+</strong> azul para adicionar seu primeiro produto.</div></div>`;return;}
+  products.forEach(p=>{
+    const px=cpx(p.price,plat.comm),profit=p.cost?p.price-p.cost:null;
+    const d=document.createElement('div');d.className='pcrd';
+    d.innerHTML=`<div class="pem">${p.emoji}</div><div style="flex:1;"><div class="pnm">${p.name}</div><div class="pbs">Receber: R$ ${f(p.price)}${p.cost?` · Custo: R$ ${f(p.cost)}`:''}</div></div><div style="text-align:right;"><span class="ppx">R$ ${f(px)}</span><span class="pcm2">${plat.name} ${plat.comm}%</span>${profit!==null?`<span class="ppft ${profit>=0?'ok':'bad'}">${profit>=0?'✓':'⚠'} R$ ${f(profit)}</span>`:''}</div>`;
+    d.onclick=()=>openEditProd(p.id);list.appendChild(d);
+  });
+}
+function renderEGrid(){const g=document.getElementById('egrid');g.innerHTML='';EMOJIS.forEach(e=>{const b=document.createElement('button');b.className='eopt'+(e===selEmoji?' on':'');b.textContent=e;b.onclick=()=>{selEmoji=e;renderEGrid();};g.appendChild(b);});}
+function openAddProd(){editId=null;selEmoji='🍕';document.getElementById('mp-name').value='';document.getElementById('mp-price').value='';document.getElementById('mp-cost').value='';document.getElementById('mptt').textContent='Adicionar Produto';document.getElementById('dbtn').style.display='none';renderEGrid();showMod('mod-prod');}
+function openEditProd(id){const p=products.find(x=>x.id===id);if(!p)return;editId=id;selEmoji=p.emoji;document.getElementById('mp-name').value=p.name;document.getElementById('mp-price').value=p.price;document.getElementById('mp-cost').value=p.cost||'';document.getElementById('mptt').textContent='Editar Produto';document.getElementById('dbtn').style.display='block';renderEGrid();showMod('mod-prod');}
+function saveProd(){
+  const name=document.getElementById('mp-name').value.trim(),price=parseFloat(document.getElementById('mp-price').value),cost=parseFloat(document.getElementById('mp-cost').value)||0;
+  if(!name||!price){alert('Preencha nome e preço!');return;}
+  if(editId){const p=products.find(x=>x.id===editId);if(p){p.name=name;p.price=price;p.cost=cost;p.emoji=selEmoji;if(window.fbSave)window.fbSave(p);}}
+  else{const np={id:String(Date.now()),name,emoji:selEmoji,price,cost};products.push(np);if(window.fbSave)window.fbSave(np);}
+  closeMod('mod-prod');renderProds();runSim();adCnt++;if(adCnt%3===0)setTimeout(showIto,400);
+}
+function delProd(){if(!editId||!confirm('Excluir este produto?'))return;products=products.filter(p=>p.id!==editId);if(window.fbDel)window.fbDel(editId);closeMod('mod-prod');renderProds();runSim();}
+
+// PLATFORM CONFIG
+function renderAll(){renderPills('pills-calc','calc');renderPills('pills-reverse','reverse');renderPills('pills-combo','combo');renderPills('pills-products','products');renderPlatCfg();renderCT(null);runSim();}
+function renderPlatCfg(){
+  const c=document.getElementById('plat-cfg');c.innerHTML='';
+  platforms.forEach(p=>{
+    const d=document.createElement('div');d.className='pcfg';
+    d.innerHTML=`<div class="pcfg-hdr" onclick="tglCfg('pc-${p.id}')"><div class="pd" style="background:${p.color}"></div><div class="pcfg-name">${p.emoji} ${p.name}</div><div class="pcfg-badge" id="badge-${p.id}" style="background:${p.color}18;color:${p.color};">${p.comm}%</div><svg viewBox="0 0 16 16" width="16" height="16" fill="none"><path d="M6 4l4 4-4 4" stroke="#9CA3AF" stroke-width="1.5" stroke-linecap="round"/></svg></div><div class="pcfg-body" id="pc-${p.id}" style="display:none;" onclick="event.stopPropagation()"><div style="margin-bottom:10px;margin-top:2px;font-size:12px;font-weight:600;color:var(--muted);">Comissão cobrada</div><div class="step-ctrl"><button class="step-btn" onclick="event.stopPropagation();stepPlat('${p.id}',-1)">−</button><div class="step-val" id="pv-${p.id}" style="font-size:24px;">${p.comm}%</div><button class="step-btn" onclick="event.stopPropagation();stepPlat('${p.id}',1)">+</button></div><div class="ptog" onclick="event.stopPropagation()"><span>Plataforma ativa</span><label class="tsw"><input type="checkbox" ${p.active?'checked':''} onchange="togPlat('${p.id}',this.checked)"/><span class="tsl"></span></label></div></div>`;
+    c.appendChild(d);
+  });
+}
+function tglCfg(id){const e=document.getElementById(id);e.style.display=e.style.display==='none'?'block':'none';}
+function stepPlat(id,delta){
+  const p=platforms.find(x=>x.id===id);if(!p)return;
+  p.comm=Math.min(45,Math.max(0,p.comm+delta));
+  const el=document.getElementById('pv-'+id);if(el)el.textContent=p.comm+'%';
+  const badgeEl=document.getElementById('badge-'+id);if(badgeEl)badgeEl.textContent=p.comm+'%';
+  renderProds();renderCT(parseFloat(document.getElementById('price-in').value)||null);calculate();runSim();
+  if(window.fbSavePlats)window.fbSavePlats();
+}
+function togPlat(id,v){const p=platforms.find(x=>x.id===id);if(p)p.active=v;renderAll();if(window.fbSavePlats)window.fbSavePlats();}
+function deleteAcc(){if(!window._user){alert('Você não está logado.');return;}if(!confirm('Tem certeza? Todos os dados serão excluídos permanentemente (LGPD).'))return;window._user.delete().then(()=>{alert('Conta excluída.');document.getElementById('auth-screen').style.display='flex';}).catch(e=>alert('Erro: '+e.message));}
+
+// SIMULATE
+function runSim(){
+  const ord=parseFloat(document.getElementById('s-ord').value)||0,tkt=parseFloat(document.getElementById('s-tkt').value)||0,dys=parseFloat(document.getElementById('s-dys').value)||0,gross=ord*tkt*dys;
+  const res=document.getElementById('sim-res');res.innerHTML='';
+  let bestP=null,bestV=0;
+  platforms.filter(p=>p.active).forEach(p=>{const profit=gross*(1-p.comm/100);if(profit>bestV){bestV=profit;bestP=p;}const r=document.createElement('div');r.className='simrow';r.innerHTML=`<span class="simlbl">${p.emoji} ${p.name} (${p.comm}%)</span><span style="font-weight:600;color:${p.id==='proprio'?'var(--accent)':'white'}">${fk(profit)}</span>`;res.appendChild(r);});
+  const avg=platforms.filter(p=>p.active).reduce((a,p)=>a+p.comm,0)/Math.max(1,platforms.filter(p=>p.active).length);
+  document.getElementById('sg').textContent=fk(gross);document.getElementById('sc2').textContent=fk(gross*(avg/100));document.getElementById('sp').textContent=fk(gross*(1-avg/100));document.getElementById('sb').textContent=bestP?bestP.emoji+' '+bestP.name:'—';document.getElementById('sbv').textContent=fk(bestV);
+}
+
+// BEFORE/AFTER
+function calcBA(){
+  const ord=parseFloat(document.getElementById('ba-ord').value)||0,dys=parseFloat(document.getElementById('ba-dys').value)||0,oldP=parseFloat(document.getElementById('ba-old').value)||0,newP=parseFloat(document.getElementById('ba-new').value)||0,comm=parseFloat(document.getElementById('ba-comm').value)||0;
+  const res=document.getElementById('ba-result');
+  if(!ord||!dys||!oldP||!newP){res.style.display='none';return;}
+  const monthly=ord*dys,oldNet=oldP*(1-comm/100)*monthly,newNet=newP*(1-comm/100)*monthly,diff=newNet-oldNet;
+  res.style.display='block';
+  document.getElementById('ba-r-old').textContent=fk(oldNet);document.getElementById('ba-r-new').textContent=fk(newNet);
+  const diffEl=document.getElementById('ba-r-diff');diffEl.textContent=(diff>=0?'+':'')+fk(diff);diffEl.style.color=diff>=0?'var(--ad)':'var(--danger)';
+}
+
+// TUTORIAL
+function tglTut(id){const body=document.getElementById(id),arr=document.getElementById('arr-'+id);body.classList.toggle('open');if(arr)arr.classList.toggle('open');}
+
+// PARCEIRO
+const PARTNER_LINK = 'https://seusite.com.br'; // trocar pelo link real
+
+function openPartner(){
+  window.open(PARTNER_LINK, '_blank');
+}
+
+let splashTimer = null;
+function showSplash(){
+  // Mostra só 1x por dia
+  const last = parseInt(localStorage.getItem('pc_splash_last')||'0');
+  const hoursSince = (Date.now()-last)/(1000*60*60);
+  if(hoursSince < 24 && last > 0) return;
+  
+  document.getElementById('splash-parceiro').style.display='flex';
+  localStorage.setItem('pc_splash_last', Date.now());
+  
+  let t = 5;
+  const timerEl = document.getElementById('splash-timer');
+  const skipBtn = document.getElementById('splash-skip-btn');
+  timerEl.textContent = `Pular em ${t}s`;
+  
+  splashTimer = setInterval(()=>{
+    t--;
+    if(t<=0){
+      clearInterval(splashTimer);
+      timerEl.textContent='';
+      skipBtn.textContent='Pular';
+    } else {
+      timerEl.textContent=`Pular em ${t}s`;
+    }
+  },1000);
+}
+
+function closeSplash(){
+  document.getElementById('splash-parceiro').style.display='none';
+  clearInterval(splashTimer);
+}
+
+// ANUNCIE AQUI
+let selectedPlanId = 'basic';
+function selectPlan(plan){
+  selectedPlanId = plan;
+  ['basic','pro-ad','premium'].forEach(p=>{
+    const el = document.getElementById('plan-'+p);
+    if(el) el.className = 'anuncie-plan'+(p===plan?' selected':'');
+  });
+}
+function submitAnuncio(){
+  const name = document.getElementById('ad-name').value.trim();
+  const phone = document.getElementById('ad-phone').value.trim();
+  const product = document.getElementById('ad-product').value.trim();
+  if(!name||!phone||!product){alert('Preencha todos os campos!');return;}
+  const plans = {basic:'Básico R$97',  'pro-ad':'Destaque R$247', premium:'Premium R$597'};
+  const msg = `Olá! Tenho interesse em anunciar no PreçoCerto.%0A%0A*Plano:* ${plans[selectedPlanId]}%0A*Nome:* ${name}%0A*Produto/Serviço:* ${product}`;
+  // Abre WhatsApp com mensagem pré-preenchida
+  window.open(`https://wa.me/5511999999999?text=${msg}`, '_blank');
+  closeMod('mod-anuncie');
+}
+
+// RATING
+function showRating(){
+  if(localStorage.getItem('pc_rated'))return;
+  document.getElementById('rating-overlay').classList.add('open');
+}
+function rateStar(n){
+  ratingStars=n;
+  document.querySelectorAll('.star').forEach((s,i)=>{s.style.filter=i<n?'none':'grayscale(1)';});
+  document.getElementById('rating-cta').textContent=n>=4?'Avaliar na loja ⭐':'Enviar avaliação';
+}
+function submitRating(){
+  localStorage.setItem('pc_rated','1');
+  if(ratingStars>=4){alert('Obrigado! Vamos te redirecionar para avaliar na loja 🙏');}
+  else{alert('Obrigado pelo feedback! Vamos melhorar 💪');}
+  closeRating();
+}
+function closeRating(){document.getElementById('rating-overlay').classList.remove('open');}
+
+// INTERSTITIAL
+function showIto(){document.getElementById('ito').classList.add('open');let t=5;const sk=document.getElementById('it-skip'),ti=document.getElementById('it-timer');sk.disabled=true;ti.textContent=`Fechar em ${t}s`;itoTimer=setInterval(()=>{t--;if(t<=0){clearInterval(itoTimer);ti.textContent='';sk.disabled=false;sk.textContent='✕ Fechar';}else ti.textContent=`Fechar em ${t}s`;},1000);}
+function closeIto(){document.getElementById('ito').classList.remove('open');clearInterval(itoTimer);}
+
+// MODALS
+function showMod(id){document.getElementById(id).classList.add('open');}
+function closeMod(id){document.getElementById(id).classList.remove('open');}
+document.querySelectorAll('.mo').forEach(m=>m.addEventListener('click',e=>{if(e.target===m)m.classList.remove('open');}));
+
+// ADS
+function adClick(p){console.log('[Ad]',p);}
+
+// UTILS
+function f(n){return(Math.round(n*100)/100).toFixed(2).replace('.',',');}
+function fk(n){return n>=1000?'R$ '+(n/1000).toFixed(1).replace('.',',')+'k':'R$ '+f(n);}
+
+// PWA INSTALL
+let deferredPrompt = null;
+window.addEventListener('beforeinstallprompt', e => {
+  e.preventDefault();
+  deferredPrompt = e;
+  document.getElementById('pwa-native-banner').style.display = 'flex';
+  document.getElementById('pwa-install-btn').textContent = '📲 Instalar agora';
+});
+
+function switchPwaTab(tab){
+  ['android','ios'].forEach(t=>{
+    document.getElementById('ptab-'+t).className='pwa-os-tab'+(t===tab?' on':'');
+    document.getElementById('ppanel-'+t).className='pwa-os-panel'+(t===tab?' on':'');
+  });
+}
+
+async function triggerInstall(){
+  if(deferredPrompt){
+    deferredPrompt.prompt();
+    const result = await deferredPrompt.userChoice;
+    if(result.outcome === 'accepted'){
+      localStorage.setItem('pc_pwa_installed','1');
+      closePwa(false);
+    }
+    deferredPrompt = null;
+  } else {
+    // No native prompt, show instructions
+    alert('Siga os passos na tela para adicionar à tela inicial 👆');
+  }
+}
+
+function closePwa(later){
+  document.getElementById('pwa-overlay').classList.remove('open');
+  if(!later) localStorage.setItem('pc_pwa_dismissed','1');
+  else localStorage.setItem('pc_pwa_later', Date.now());
+}
+
+function checkShowPwa(){
+  if(localStorage.getItem('pc_pwa_installed')) return;
+  if(localStorage.getItem('pc_pwa_dismissed')) return;
+  const later = parseInt(localStorage.getItem('pc_pwa_later')||'0');
+  const daysSince = (Date.now()-later)/(1000*60*60*24);
+  if(later > 0 && daysSince < 7) return;
+  // Show after 8 seconds on first/returning visit
+  setTimeout(()=>{
+    document.getElementById('pwa-overlay').classList.add('open');
+    // Auto-detect iOS
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+    if(isIOS) switchPwaTab('ios');
+  }, 8000);
+}
+
+// checkOnboarding - handled by firebase auth state now
+function checkOnboarding(){ /* handled by onAuthStateChanged */ }
+
+// INIT
+function init(){
+  renderPills('pills-calc','calc');renderPills('pills-reverse','reverse');renderPills('pills-combo','combo');renderPills('pills-products','products');
+  renderPlatCfg();renderProds();renderCT(null);renderEGrid();renderComboEGrid();runSim();
+  checkReajuste();
+  checkShowPwa();
+  checkOnboarding();
+  setTimeout(showIto,45000);
+}
+showScreen('calc');init();
+</script>
+</body>
+</html>
