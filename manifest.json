@@ -1,0 +1,88 @@
+{
+  "name": "PreçoCerto — Calculadora Delivery",
+  "short_name": "PreçoCerto",
+  "description": "Calculadora de preços para delivery. Descubra quanto cobrar no iFood, Rappi e muito mais.",
+  "start_url": "/Precify/",
+  "scope": "/Precify/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#1B4FFF",
+  "theme_color": "#1B4FFF",
+  "lang": "pt-BR",
+  "categories": [
+    "business",
+    "finance",
+    "food"
+  ],
+  "icons": [
+    {
+      "src": "icon-72.png",
+      "sizes": "72x72",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icon-96.png",
+      "sizes": "96x96",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icon-128.png",
+      "sizes": "128x128",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icon-144.png",
+      "sizes": "144x144",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icon-152.png",
+      "sizes": "152x152",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "screenshots": [],
+  "shortcuts": [
+    {
+      "name": "Calculadora",
+      "short_name": "Calcular",
+      "description": "Abrir calculadora de preços",
+      "url": "/Precify/?screen=calc",
+      "icons": [
+        {
+          "src": "icon-96.png",
+          "sizes": "96x96"
+        }
+      ]
+    },
+    {
+      "name": "Meu Cardápio",
+      "short_name": "Cardápio",
+      "description": "Ver meu cardápio",
+      "url": "/Precify/?screen=products",
+      "icons": [
+        {
+          "src": "icon-96.png",
+          "sizes": "96x96"
+        }
+      ]
+    }
+  ]
+}
