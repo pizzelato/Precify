@@ -10,182 +10,169 @@
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
     body { font-family: 'Inter', system-ui, sans-serif; }
     .netflix-bg { background: linear-gradient(180deg, #0a0a0a, #000000); }
-    .glass { background: rgba(255,255,255,0.08); backdrop-filter: blur(16px); border: 1px solid rgba(255,255,255,0.1); }
-    .sidebar-link { transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
-    .sidebar-link:hover { transform: translateX(8px); }
-    .card-hover:hover { transform: scale(1.06) rotate(2deg); box-shadow: 0 30px 60px -15px rgb(168 85 247); }
+    .glass { background: rgba(30, 30, 30, 0.85); backdrop-filter: blur(16px); }
+    .sidebar-link { transition: all 0.3s; }
+    .sidebar-link:hover { transform: translateX(10px); background-color: #1f1f1f; }
+    .sidebar-link.active { background-color: #6b21a8; color: white; }
+    .card-hover:hover { transform: scale(1.08); }
     .modal { animation: modalPop 0.4s ease-out; }
-    @keyframes modalPop { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
+    @keyframes modalPop { from { opacity: 0; transform: scale(0.9); } to { opacity: 1; transform: scale(1); } }
   </style>
 </head>
-<body class="netflix-bg text-white min-h-screen overflow-hidden">
+<body class="netflix-bg text-white min-h-screen">
 
   <!-- LOGIN -->
   <div id="loginScreen" class="flex items-center justify-center min-h-screen">
-    <div class="glass rounded-3xl p-12 max-w-md w-full mx-4 text-center">
+    <div class="glass rounded-3xl p-12 max-w-md w-full mx-4 border border-purple-500/30">
       <div class="flex justify-center mb-8">
         <div class="w-20 h-20 bg-gradient-to-br from-purple-600 to-blue-600 rounded-3xl flex items-center justify-center text-5xl font-black shadow-2xl">P</div>
       </div>
-      <h1 class="text-5xl font-bold mb-2">Robô Produtor PRO</h1>
-      <p class="text-zinc-400 mb-10">Sua fábrica de conteúdo com IA</p>
-      <input id="emailInput" type="email" placeholder="Seu e-mail da compra" class="w-full bg-zinc-900 border border-zinc-700 rounded-3xl px-8 py-6 text-lg focus:outline-none focus:border-purple-500 mb-6">
-      <button onclick="fakeLogin()" class="w-full bg-gradient-to-r from-purple-600 to-blue-600 py-6 rounded-3xl text-2xl font-bold hover:scale-105 transition">ENTRAR NA ÁREA DE MEMBROS</button>
+      <h1 class="text-5xl font-bold text-center mb-2">Robô Produtor PRO</h1>
+      <p class="text-center text-zinc-400 mb-10">Área de Membros Exclusiva</p>
+      
+      <input id="emailInput" type="email" placeholder="Seu e-mail da compra" 
+        class="w-full bg-zinc-900 border border-zinc-700 rounded-3xl px-8 py-6 text-lg focus:outline-none focus:border-purple-500 mb-6">
+      
+      <button onclick="fakeLogin()" 
+        class="w-full bg-gradient-to-r from-purple-600 to-blue-600 py-6 rounded-3xl text-2xl font-bold hover:scale-105 transition">
+        ENTRAR
+      </button>
     </div>
   </div>
 
   <!-- MAIN APP -->
   <div id="mainApp" class="hidden flex h-screen">
 
-    <!-- SIDEBAR (igual ao print) -->
+    <!-- SIDEBAR -->
     <div class="w-72 bg-black border-r border-zinc-800 p-6 flex flex-col h-full fixed">
       <div class="flex items-center gap-3 mb-10">
         <div class="w-10 h-10 bg-gradient-to-br from-purple-600 to-blue-600 rounded-2xl flex items-center justify-center text-3xl font-black">P</div>
         <div>
-          <h1 class="text-3xl font-bold leading-none">Robô</h1>
-          <h1 class="text-3xl font-bold leading-none">Produtor PRO</h1>
+          <h1 class="text-3xl font-bold">Robô Produtor</h1>
+          <h1 class="text-3xl font-bold text-purple-400">PRO</h1>
         </div>
       </div>
 
       <nav class="space-y-1 flex-1">
-        <a onclick="showSection('home')" class="sidebar-link active flex items-center gap-4 px-5 py-4 rounded-2xl"><i class="fas fa-home"></i> Início</a>
-        <a onclick="showSection('prompts')" class="sidebar-link flex items-center gap-4 px-5 py-4 rounded-2xl"><i class="fas fa-magic"></i> Gerador de Prompts</a>
-        <a onclick="showSection('arte')" class="sidebar-link flex items-center gap-4 px-5 py-4 rounded-2xl"><i class="fas fa-palette"></i> Gere sua Arte</a>
-        <a onclick="showSection('anime')" class="sidebar-link flex items-center gap-4 px-5 py-4 rounded-2xl"><i class="fas fa-film"></i> Anime sua Imagem</a>
-        <a onclick="showSection('clone')" class="sidebar-link flex items-center gap-4 px-5 py-4 rounded-2xl"><i class="fas fa-user-secret"></i> Clone com IA</a>
-        <a onclick="showSection('videos')" class="sidebar-link flex items-center gap-4 px-5 py-4 rounded-2xl"><i class="fas fa-video"></i> Estúdio de Vídeos</a>
-        <a onclick="showSection('censura')" class="sidebar-link flex items-center gap-4 px-5 py-4 rounded-2xl text-red-400"><i class="fas fa-fire"></i> Canal Dark</a>
-        <a onclick="showSection('deepnudes')" class="sidebar-link flex items-center gap-4 px-5 py-4 rounded-2xl text-red-400"><i class="fas fa-mask"></i> Deep Nudes & Adulto</a>
-        <a onclick="showSection('skills')" class="sidebar-link flex items-center gap-4 px-5 py-4 rounded-2xl"><i class="fas fa-book"></i> Skills para IAs</a>
-        <a onclick="showSection('guia')" class="sidebar-link flex items-center gap-4 px-5 py-4 rounded-2xl"><i class="fas fa-graduation-cap"></i> Como Ganhar Dinheiro</a>
+        <a onclick="showSection('home')" class="sidebar-link active flex items-center gap-4 px-5 py-4 rounded-2xl"><i class="fas fa-home w-5"></i> Início</a>
+        <a onclick="showSection('prompts')" class="sidebar-link flex items-center gap-4 px-5 py-4 rounded-2xl"><i class="fas fa-magic w-5"></i> Gerador de Prompts</a>
+        <a onclick="showSection('arte')" class="sidebar-link flex items-center gap-4 px-5 py-4 rounded-2xl"><i class="fas fa-palette w-5"></i> Gere sua Arte</a>
+        <a onclick="showSection('anime')" class="sidebar-link flex items-center gap-4 px-5 py-4 rounded-2xl"><i class="fas fa-film w-5"></i> Anime sua Imagem</a>
+        <a onclick="showSection('clone')" class="sidebar-link flex items-center gap-4 px-5 py-4 rounded-2xl"><i class="fas fa-user-secret w-5"></i> Clone com IA</a>
+        <a onclick="showSection('videos')" class="sidebar-link flex items-center gap-4 px-5 py-4 rounded-2xl"><i class="fas fa-video w-5"></i> Estúdio de Vídeos</a>
+        <a onclick="showSection('censura')" class="sidebar-link flex items-center gap-4 px-5 py-4 rounded-2xl text-red-400"><i class="fas fa-fire w-5"></i> Canal Dark</a>
+        <a onclick="showSection('deepnudes')" class="sidebar-link flex items-center gap-4 px-5 py-4 rounded-2xl text-red-400"><i class="fas fa-mask w-5"></i> Deep Nudes & Adulto</a>
+        <a onclick="showSection('skills')" class="sidebar-link flex items-center gap-4 px-5 py-4 rounded-2xl"><i class="fas fa-book w-5"></i> Skills para IAs</a>
+        <a onclick="showSection('guia')" class="sidebar-link flex items-center gap-4 px-5 py-4 rounded-2xl"><i class="fas fa-graduation-cap w-5"></i> Como Ganhar Dinheiro</a>
       </nav>
     </div>
 
     <!-- CONTEÚDO -->
-    <div class="flex-1 ml-72 overflow-auto p-8">
+    <div class="flex-1 ml-72 p-10 overflow-auto" id="mainContent">
 
-      <!-- HOME -->
+      <!-- INÍCIO -->
       <div id="section-home" class="section">
-        <h1 class="text-6xl font-bold mb-2">Bem-vindo de volta, Produtor.</h1>
-        <p class="text-2xl text-zinc-400">Sua fábrica de conteúdo com IA está pronta. Vamos faturar?</p>
+        <h1 class="text-6xl font-bold mb-4">Bem-vindo de volta, Produtor.</h1>
+        <p class="text-2xl text-zinc-400">Sua fábrica de conteúdo com IA está pronta.</p>
       </div>
 
-      <!-- GERADOR DE PROMPTS + GALERIA + TESTADOR -->
+      <!-- GERADOR DE PROMPTS -->
       <div id="section-prompts" class="section hidden">
         <h1 class="text-5xl font-bold mb-8">Gerador de Prompts PRO</h1>
         <div class="grid grid-cols-2 md:grid-cols-5 gap-4 mb-10" id="categoryGrid"></div>
 
-        <div class="glass rounded-3xl p-8 mb-12">
-          <textarea id="promptIdea" rows="4" class="w-full bg-black border border-zinc-700 rounded-3xl p-6 text-lg" placeholder="Descreva sua ideia..."></textarea>
-          <button onclick="gerarPromptPro()" class="mt-6 w-full bg-gradient-to-r from-purple-600 to-pink-600 py-6 text-2xl font-bold rounded-3xl">🚀 GERAR PROMPT PREMIUM</button>
+        <div class="glass rounded-3xl p-8">
+          <textarea id="promptIdea" rows="5" class="w-full bg-zinc-900 border border-zinc-700 rounded-3xl p-6 text-lg" placeholder="Descreva sua ideia aqui..."></textarea>
+          <button onclick="gerarPromptPro()" class="mt-8 w-full bg-gradient-to-r from-purple-600 to-pink-600 py-7 text-2xl font-bold rounded-3xl">🚀 GERAR PROMPT PREMIUM</button>
         </div>
 
-        <div id="promptResult" class="hidden"></div>
-
-        <!-- GALERIA DE PROMPTS (50+ exemplos) -->
-        <div class="mt-16">
-          <h2 class="text-3xl font-bold mb-6">Galeria de 50+ Prompts Prontos</h2>
-          <div id="promptGallery" class="grid grid-cols-1 md:grid-cols-2 gap-6"></div>
-        </div>
+        <div id="promptResult" class="hidden mt-10 glass rounded-3xl p-8"></div>
       </div>
 
-      <!-- SKILLS PARA IAs -->
-      <div id="section-skills" class="section hidden">
-        <h1 class="text-5xl font-bold mb-8">Skills para IAs</h1>
-        <p class="text-zinc-400 mb-10">Copie e cole diretamente no Gemini, Claude, Manus, ChatGPT etc.</p>
-        <div class="space-y-10" id="skillsContent"></div>
-      </div>
-
-      <!-- WELCOME MODAL -->
-      <div id="welcomeModal" class="hidden fixed inset-0 bg-black/80 flex items-center justify-center z-50">
-        <div class="glass modal rounded-3xl p-12 max-w-lg text-center">
-          <h2 class="text-4xl font-bold mb-6">🎉 Bem-vindo ao Robô Produtor PRO!</h2>
-          <p class="text-xl text-zinc-300 mb-8">Você agora tem acesso à ferramenta mais poderosa de criação com IA do Brasil.</p>
-          <button onclick="closeWelcomeModal()" class="bg-white text-black px-12 py-5 rounded-3xl text-xl font-bold">COMEÇAR A CRIAR</button>
-        </div>
-      </div>
+      <!-- OUTRAS SEÇÕES -->
+      <div id="section-arte" class="section hidden"><h1 class="text-4xl font-bold">Gere sua Arte</h1></div>
+      <div id="section-anime" class="section hidden"><h1 class="text-4xl font-bold">Anime sua Imagem</h1></div>
+      <div id="section-clone" class="section hidden"><h1 class="text-4xl font-bold">Clone com IA</h1></div>
+      <div id="section-videos" class="section hidden"><h1 class="text-4xl font-bold">Estúdio de Vídeos</h1></div>
+      <div id="section-censura" class="section hidden"><h1 class="text-4xl font-bold text-red-500">Canal Dark</h1></div>
+      <div id="section-deepnudes" class="section hidden"><h1 class="text-4xl font-bold text-red-500">Deep Nudes & Adulto</h1></div>
+      <div id="section-skills" class="section hidden"><h1 class="text-4xl font-bold">Skills para IAs</h1></div>
+      <div id="section-guia" class="section hidden"><h1 class="text-4xl font-bold">Como Ganhar Dinheiro com IA</h1></div>
     </div>
   </div>
 
   <script>
-    // Confetti + animações
-    function launchConfetti() {
-      for (let i = 0; i < 80; i++) {
-        setTimeout(() => {
-          const confetti = document.createElement('div');
-          confetti.textContent = ['✨','🚀','💎','🔥'][Math.floor(Math.random()*4)];
-          confetti.style.position = 'fixed';
-          confetti.style.left = Math.random() * 100 + 'vw';
-          confetti.style.top = '-20px';
-          confetti.style.fontSize = '30px';
-          confetti.style.zIndex = '9999';
-          confetti.style.pointerEvents = 'none';
-          document.body.appendChild(confetti);
-          confetti.animate([
-            { transform: 'translateY(0)' },
-            { transform: `translateY(${window.innerHeight + 100}px) rotate(${Math.random()*720}deg)` }
-          ], { duration: 3000, easing: 'cubic-bezier(0.25, 0.1, 0.25, 1)' });
-          setTimeout(() => confetti.remove(), 3000);
-        }, i * 3);
+    function fakeLogin() {
+      const email = document.getElementById('emailInput').value.trim();
+      if (email === "") {
+        alert("Por favor, digite seu e-mail");
+        return;
       }
+      document.getElementById('loginScreen').classList.add('hidden');
+      document.getElementById('mainApp').classList.remove('hidden');
+      localStorage.setItem('loggedIn', 'true');
+      renderCategories();
     }
 
-    // Renderiza tudo
-    const categories = [ /* mesma lista anterior */ ];
-    // ... (todo o JS anterior do gerador + histórico + fakeLogin + showSection)
+    function showSection(sectionId) {
+      document.querySelectorAll('.section').forEach(section => {
+        section.classList.add('hidden');
+      });
+      const activeSection = document.getElementById('section-' + sectionId);
+      if (activeSection) activeSection.classList.remove('hidden');
+
+      // Ativa link no sidebar
+      document.querySelectorAll('.sidebar-link').forEach(link => link.classList.remove('active'));
+      const activeLink = Array.from(document.querySelectorAll('.sidebar-link')).find(link => 
+        link.getAttribute('onclick').includes(sectionId)
+      );
+      if (activeLink) activeLink.classList.add('active');
+    }
+
+    function renderCategories() {
+      const categories = [
+        {name: "Imagens", icon: "fa-image"},
+        {name: "Vídeos", icon: "fa-video"},
+        {name: "Anime", icon: "fa-wand-magic-sparkles"},
+        {name: "Clone", icon: "fa-user"},
+        {name: "Thumbnails", icon: "fa-thumbs-up"}
+      ];
+      const grid = document.getElementById('categoryGrid');
+      grid.innerHTML = categories.map(cat => `
+        <div class="glass p-6 rounded-3xl card-hover cursor-pointer text-center">
+          <i class="fas ${cat.icon} text-4xl mb-4"></i>
+          <h3 class="font-semibold">${cat.name}</h3>
+        </div>
+      `).join('');
+    }
 
     function gerarPromptPro() {
-      // (código anterior)
-      launchConfetti(); // efeito de fogos ao gerar
-      // mostra o result com botão "Testar Prompt"
-      const resultHTML = `
-        <div class="glass rounded-3xl p-8">
-          <h3 class="text-2xl font-bold mb-6">✅ Seu Prompt Premium</h3>
-          <pre id="finalPrompt" class="bg-black p-6 rounded-2xl text-sm overflow-auto"></pre>
-          <div class="flex gap-4 mt-8">
-            <button onclick="copiarPrompt()" class="flex-1 py-5 bg-white text-black rounded-3xl font-bold">📋 Copiar</button>
-            <button onclick="testarPrompt()" class="flex-1 py-5 bg-gradient-to-r from-pink-500 to-purple-600 rounded-3xl font-bold">🧪 Testar Prompt (Preview)</button>
-          </div>
-        </div>`;
-      document.getElementById('promptResult').innerHTML = resultHTML;
-      document.getElementById('promptResult').classList.remove('hidden');
-      document.getElementById('finalPrompt').textContent = /* prompt gerado */;
-    }
-
-    function testarPrompt() {
-      const modal = document.createElement('div');
-      modal.innerHTML = `
-        <div class="fixed inset-0 bg-black/90 flex items-center justify-center z-[9999]">
-          <div class="glass rounded-3xl p-10 max-w-md text-center">
-            <div class="animate-spin w-16 h-16 border-4 border-purple-500 border-t-transparent rounded-full mx-auto mb-6"></div>
-            <h3 class="text-2xl font-bold">Gerando preview com IA...</h3>
-            <p class="text-zinc-400 mt-3">Usando Flux + ComfyUI</p>
-            <div class="mt-10 bg-black rounded-2xl p-4 text-left text-xs font-mono">Imagem sendo gerada em alta qualidade...</div>
-            <button onclick="this.closest('.fixed').remove()" class="mt-8 w-full py-4 bg-white text-black rounded-3xl">Fechar Preview</button>
-          </div>
-        </div>`;
-      document.body.appendChild(modal);
-    }
-
-    // Modal de boas-vindas
-    function showWelcomeModal() {
-      if (!localStorage.getItem('welcomeShown')) {
-        document.getElementById('welcomeModal').classList.remove('hidden');
-        localStorage.setItem('welcomeShown', 'true');
+      const idea = document.getElementById('promptIdea').value.trim();
+      if (!idea) {
+        alert("Digite sua ideia!");
+        return;
       }
+      const prompt = `Hyper realistic, 8K, cinematic lighting, ultra detailed, ${idea}, masterpiece, best quality`;
+      
+      document.getElementById('promptResult').innerHTML = `
+        <h3 class="text-2xl font-bold mb-4">✅ Prompt Gerado</h3>
+        <pre class="bg-black p-6 rounded-3xl text-sm whitespace-pre-wrap">${prompt}</pre>
+        <button onclick="copiarPrompt('${prompt}')" class="mt-6 w-full bg-white text-black py-5 rounded-3xl font-bold">📋 Copiar Prompt</button>
+      `;
+      document.getElementById('promptResult').classList.remove('hidden');
     }
 
-    // Skills (exemplo de 3 skills completas)
-    function renderSkills() {
-      // Aqui você pode colocar várias skills com passo a passo
-      // Exemplo: Gemini, Claude, Manus, etc.
+    function copiarPrompt(text) {
+      navigator.clipboard.writeText(text).then(() => alert("✅ Prompt copiado!"));
     }
 
+    // Iniciar
     window.onload = () => {
       if (localStorage.getItem('loggedIn')) {
         document.getElementById('loginScreen').classList.add('hidden');
         document.getElementById('mainApp').classList.remove('hidden');
-        showWelcomeModal();
-        launchConfetti(); // efeito inicial
+        renderCategories();
+        showSection('home');
       }
     };
   </script>
