@@ -10,7 +10,7 @@
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
     body { font-family: 'Inter', system-ui, sans-serif; }
     .netflix-bg { background: linear-gradient(180deg, #0a0a0a, #000000); }
-    .glass { background: rgba(30,30,30,0.85); backdrop-filter: blur(16px); border: 1px solid rgba(255,255,255,0.1); }
+    .glass { background: rgba(30,30,30,0.85); backdrop-filter: blur(16px); }
     .sidebar-link { transition: all 0.3s; }
     .sidebar-link:hover { transform: translateX(12px); background-color: #1f1f1f; }
     .sidebar-link.active { background-color: #7c3aed; color: white; }
@@ -57,7 +57,7 @@
     <!-- CONTEÚDO -->
     <div class="flex-1 ml-72 p-10 overflow-auto">
 
-      <!-- INÍCIO -->
+      <!-- HOME -->
       <div id="section-home" class="section">
         <h1 class="text-6xl font-bold mb-4">Bem-vindo de volta, Produtor.</h1>
         <p class="text-2xl text-zinc-400">Sua fábrica de conteúdo com IA está pronta. Vamos faturar?</p>
@@ -82,33 +82,22 @@
         <div class="space-y-8" id="skillsList"></div>
       </div>
 
-      <!-- COMO GANHAR DINHEIRO -->
+      <!-- GANHAR DINHEIRO -->
       <div id="section-guia" class="section hidden">
         <h1 class="text-5xl font-bold mb-8">💰 Como Ganhar Dinheiro com IA</h1>
-        <div class="glass rounded-3xl p-10 text-zinc-300">
-          <h2 class="text-2xl font-bold mb-6">Estratégias que estão funcionando agora</h2>
-          <ul class="space-y-6 text-lg">
-            <li>1. Criar 30 Reels por dia com IA e vender curso digital</li>
-            <li>2. Gerar thumbnails + anúncios Meta Ads</li>
-            <li>3. Criar avatar IA + OnlyFans/Fanvue fictício</li>
-            <li>4. Packs de conteúdo adulto com IA</li>
-          </ul>
-        </div>
+        <div class="glass rounded-3xl p-10">Estratégias completas de monetização com IA (OnlyFans, infoprodutos, tráfego pago, etc.)</div>
       </div>
 
       <!-- CANAL DARK -->
       <div id="section-censura" class="section hidden">
         <h1 class="text-5xl font-bold text-red-500 mb-8">🔥 Canal Dark</h1>
-        <p class="text-xl">Acesse ferramentas sem censura (Comfy Cloud, etc.)</p>
+        <div class="glass rounded-3xl p-10">Ferramentas sem censura para conteúdo adulto</div>
       </div>
 
-      <!-- DEEP NUDES & ADULTO -->
+      <!-- DEEP NUDES -->
       <div id="section-deepnudes" class="section hidden">
         <h1 class="text-5xl font-bold text-red-500 mb-8">🔥 Deep Nudes & Adulto</h1>
-        <div class="glass rounded-3xl p-10">
-          <p class="text-red-400 mb-6">Use apenas personagens fictícios ou com consentimento.</p>
-          <button onclick="window.open('https://www.comfy.org/cloud','_blank')" class="bg-red-600 px-8 py-4 rounded-2xl">Abrir Comfy Cloud</button>
-        </div>
+        <div class="glass rounded-3xl p-10">Ferramentas e prompts para conteúdo adulto fictício</div>
       </div>
     </div>
   </div>
@@ -117,7 +106,7 @@
   <div id="welcomeModal" class="hidden fixed inset-0 bg-black/80 flex items-center justify-center z-50">
     <div class="glass modal rounded-3xl p-12 max-w-md text-center">
       <h2 class="text-4xl font-bold mb-6">🎉 Bem-vindo ao Robô Produtor PRO!</h2>
-      <p class="text-zinc-300 mb-8">Tudo pronto para você criar e faturar com IA.</p>
+      <p class="text-zinc-300 mb-8">Tudo pronto para você criar conteúdos incríveis e faturar alto.</p>
       <button onclick="closeWelcome()" class="bg-white text-black px-12 py-5 rounded-3xl text-xl font-bold">COMEÇAR AGORA</button>
     </div>
   </div>
@@ -130,6 +119,7 @@
       document.getElementById('mainApp').classList.remove('hidden');
       localStorage.setItem('loggedIn', 'true');
       renderCategories();
+      renderSkills();
       showWelcomeModal();
     }
 
@@ -143,10 +133,10 @@
     }
 
     function renderCategories() {
-      const cats = ["Imagens Profissionais","Vídeos Veo3","Anime","Clone","Thumbnails","Reels","Carrossel","Fotos sem Censura"];
+      const cats = ["Imagens Profissionais","Vídeos Veo3","Anime sua Imagem","Clone com IA","Thumbnails","Reels","Carrossel","Fotos sem Censura"];
       let html = '';
       cats.forEach(cat => {
-        html += `<div onclick="alert('Categoria selecionada: ${cat}')" class="glass p-6 rounded-3xl card-hover cursor-pointer text-center"><i class="fas fa-image text-4xl mb-3"></i><p class="font-semibold">${cat}</p></div>`;
+        html += `<div onclick="alert('✅ Categoria selecionada: ${cat}')" class="glass p-6 rounded-3xl card-hover cursor-pointer text-center"><i class="fas fa-image text-4xl mb-3 text-purple-400"></i><p class="font-semibold">${cat}</p></div>`;
       });
       document.getElementById('categoryGrid').innerHTML = html;
     }
@@ -154,51 +144,4 @@
     function gerarPromptPro() {
       const idea = document.getElementById('promptIdea').value.trim();
       if (!idea) return alert("Digite sua ideia!");
-      const prompt = `8K, hiper realista, qualidade cinematográfica, iluminação dramática, ${idea}, masterpiece, ultra detailed`;
-      document.getElementById('promptResult').innerHTML = `
-        <h3 class="text-2xl font-bold mb-4">✅ Seu Prompt Gerado</h3>
-        <pre class="bg-black p-6 rounded-3xl text-sm">${prompt}</pre>
-        <button onclick="copiarPrompt('${prompt}')" class="mt-6 w-full py-5 bg-white text-black rounded-3xl font-bold">📋 Copiar Prompt</button>
-      `;
-      document.getElementById('promptResult').classList.remove('hidden');
-    }
-
-    function copiarPrompt(text) {
-      navigator.clipboard.writeText(text).then(() => alert("✅ Prompt copiado!"));
-    }
-
-    function showWelcomeModal() {
-      if (!localStorage.getItem('welcomeShown')) {
-        document.getElementById('welcomeModal').classList.remove('hidden');
-        localStorage.setItem('welcomeShown', 'true');
-      }
-    }
-
-    function closeWelcome() {
-      document.getElementById('welcomeModal').classList.add('hidden');
-    }
-
-    // Skills (exemplo completo)
-    function renderSkills() {
-      const skillsHTML = `
-        <div class="glass rounded-3xl p-8">
-          <h3 class="font-bold text-xl mb-4">1. Skill para Gemini / Claude</h3>
-          <pre class="bg-black p-6 rounded-2xl text-sm overflow-auto">Você é o Robô Produtor PRO. Sempre gere prompts ultra detalhados...</pre>
-          <button onclick="copiarPrompt('Você é o Robô Produtor PRO...')" class="mt-4 px-6 py-3 bg-purple-600 rounded-2xl">Copiar Skill</button>
-        </div>`;
-      document.getElementById('skillsList').innerHTML = skillsHTML;
-    }
-
-    window.onload = () => {
-      if (localStorage.getItem('loggedIn')) {
-        document.getElementById('loginScreen').classList.add('hidden');
-        document.getElementById('mainApp').classList.remove('hidden');
-        renderCategories();
-        renderSkills();
-        showSection('home');
-        showWelcomeModal();
-      }
-    };
-  </script>
-</body>
-</html>
+      const prompt = `8K, hiper
