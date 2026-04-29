@@ -57,57 +57,40 @@
     <!-- CONTEÚDO -->
     <div class="flex-1 ml-72 p-10 overflow-auto">
 
-      <!-- HOME -->
       <div id="section-home" class="section">
         <h1 class="text-6xl font-bold mb-4">Bem-vindo de volta, Produtor.</h1>
         <p class="text-2xl text-zinc-400">Sua fábrica de conteúdo com IA está pronta. Vamos faturar?</p>
       </div>
 
-      <!-- GERADOR DE PROMPTS -->
       <div id="section-prompts" class="section hidden">
         <h1 class="text-5xl font-bold mb-8">Gerador de Prompts PRO</h1>
         <div class="grid grid-cols-2 md:grid-cols-5 gap-4 mb-10" id="categoryGrid"></div>
-
         <div class="glass rounded-3xl p-8">
           <textarea id="promptIdea" rows="5" class="w-full bg-zinc-900 border border-zinc-700 rounded-3xl p-6 text-lg" placeholder="Descreva sua ideia aqui..."></textarea>
           <button onclick="gerarPromptPro()" class="mt-8 w-full bg-gradient-to-r from-purple-600 to-pink-600 py-7 text-2xl font-bold rounded-3xl">🚀 GERAR PROMPT PREMIUM</button>
         </div>
-
         <div id="promptResult" class="hidden mt-10 glass rounded-3xl p-8"></div>
       </div>
 
-      <!-- SKILLS PARA IAs -->
       <div id="section-skills" class="section hidden">
         <h1 class="text-5xl font-bold mb-8">Skills para IAs</h1>
         <div class="space-y-8" id="skillsList"></div>
       </div>
 
-      <!-- GANHAR DINHEIRO -->
       <div id="section-guia" class="section hidden">
         <h1 class="text-5xl font-bold mb-8">💰 Como Ganhar Dinheiro com IA</h1>
-        <div class="glass rounded-3xl p-10">Estratégias completas de monetização com IA (OnlyFans, infoprodutos, tráfego pago, etc.)</div>
+        <div class="glass rounded-3xl p-10">Aqui vão as estratégias completas de monetização (infoprodutos, OnlyFans, tráfego pago, etc.)</div>
       </div>
 
-      <!-- CANAL DARK -->
       <div id="section-censura" class="section hidden">
         <h1 class="text-5xl font-bold text-red-500 mb-8">🔥 Canal Dark</h1>
         <div class="glass rounded-3xl p-10">Ferramentas sem censura para conteúdo adulto</div>
       </div>
 
-      <!-- DEEP NUDES -->
       <div id="section-deepnudes" class="section hidden">
         <h1 class="text-5xl font-bold text-red-500 mb-8">🔥 Deep Nudes & Adulto</h1>
         <div class="glass rounded-3xl p-10">Ferramentas e prompts para conteúdo adulto fictício</div>
       </div>
-    </div>
-  </div>
-
-  <!-- MODAL BOAS-VINDAS -->
-  <div id="welcomeModal" class="hidden fixed inset-0 bg-black/80 flex items-center justify-center z-50">
-    <div class="glass modal rounded-3xl p-12 max-w-md text-center">
-      <h2 class="text-4xl font-bold mb-6">🎉 Bem-vindo ao Robô Produtor PRO!</h2>
-      <p class="text-zinc-300 mb-8">Tudo pronto para você criar conteúdos incríveis e faturar alto.</p>
-      <button onclick="closeWelcome()" class="bg-white text-black px-12 py-5 rounded-3xl text-xl font-bold">COMEÇAR AGORA</button>
     </div>
   </div>
 
@@ -144,4 +127,53 @@
     function gerarPromptPro() {
       const idea = document.getElementById('promptIdea').value.trim();
       if (!idea) return alert("Digite sua ideia!");
-      const prompt = `8K, hiper
+      const prompt = `8K, hiper realista, qualidade cinematográfica, iluminação dramática, ${idea}, masterpiece, ultra detailed`;
+      document.getElementById('promptResult').innerHTML = `
+        <h3 class="text-2xl font-bold mb-4">✅ Prompt Gerado</h3>
+        <pre class="bg-black p-6 rounded-3xl text-sm">${prompt}</pre>
+        <button onclick="copiarPrompt('${prompt}')" class="mt-6 w-full py-5 bg-white text-black rounded-3xl font-bold">📋 Copiar Prompt</button>
+      `;
+      document.getElementById('promptResult').classList.remove('hidden');
+    }
+
+    function copiarPrompt(text) {
+      navigator.clipboard.writeText(text).then(() => alert("✅ Copiado!"));
+    }
+
+    function renderSkills() {
+      document.getElementById('skillsList').innerHTML = `
+        <div class="glass rounded-3xl p-8">
+          <h3 class="font-bold text-xl mb-4">Skill Robô Produtor PRO</h3>
+          <pre class="bg-black p-6 rounded-2xl text-sm overflow-auto">Você é o Robô Produtor PRO. Sempre gere prompts ultra detalhados e profissionais para qualquer IA.</pre>
+          <button onclick="copiarPrompt('Você é o Robô Produtor PRO...')" class="mt-4 px-6 py-3 bg-purple-600 rounded-2xl">Copiar Skill</button>
+        </div>`;
+    }
+
+    function showWelcomeModal() {
+      if (!localStorage.getItem('welcomeShown')) {
+        const modal = document.createElement('div');
+        modal.innerHTML = `
+          <div class="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
+            <div class="glass modal rounded-3xl p-12 max-w-md text-center">
+              <h2 class="text-4xl font-bold mb-6">🎉 Bem-vindo ao Robô Produtor PRO!</h2>
+              <p class="text-zinc-300 mb-8">Tudo pronto para você criar e faturar com IA.</p>
+              <button onclick="this.closest('.fixed').remove()" class="bg-white text-black px-12 py-5 rounded-3xl text-xl font-bold">COMEÇAR AGORA</button>
+            </div>
+          </div>`;
+        document.body.appendChild(modal);
+        localStorage.setItem('welcomeShown', 'true');
+      }
+    }
+
+    window.onload = () => {
+      if (localStorage.getItem('loggedIn')) {
+        document.getElementById('loginScreen').classList.add('hidden');
+        document.getElementById('mainApp').classList.remove('hidden');
+        renderCategories();
+        renderSkills();
+        showSection('home');
+      }
+    };
+  </script>
+</body>
+</html>
