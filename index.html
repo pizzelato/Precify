@@ -10,27 +10,27 @@
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
     body { font-family: 'Inter', system-ui, sans-serif; }
     .netflix-bg { background: linear-gradient(180deg, #0a0a0a, #000000); }
-    .glass { background: rgba(30,30,30,0.85); backdrop-filter: blur(16px); }
+    .glass { background: rgba(30,30,30,0.85); backdrop-filter: blur(16px); border: 1px solid rgba(255,255,255,0.1); }
     .sidebar-link { transition: all 0.3s; }
-    .sidebar-link:hover { transform: translateX(12px); }
+    .sidebar-link:hover { transform: translateX(12px); background-color: #1f1f1f; }
     .sidebar-link.active { background-color: #7c3aed; color: white; }
-    .card-hover:hover { transform: scale(1.08); box-shadow: 0 20px 40px rgba(124, 58, 237, 0.3); }
-    .modal { animation: modalPop 0.4s ease; }
-    @keyframes modalPop { from { opacity:0; transform:scale(0.8); } to { opacity:1; transform:scale(1); } }
+    .card-hover:hover { transform: scale(1.08); }
+    .modal { animation: modalPop 0.4s ease-out; }
+    @keyframes modalPop { from { opacity:0; transform:scale(0.9); } to { opacity:1; transform:scale(1); } }
   </style>
 </head>
 <body class="netflix-bg text-white min-h-screen">
 
   <!-- LOGIN -->
   <div id="loginScreen" class="flex items-center justify-center min-h-screen">
-    <div class="glass rounded-3xl p-12 max-w-md w-full mx-4 border border-purple-500/30">
+    <div class="glass rounded-3xl p-12 max-w-md w-full mx-4">
       <div class="flex justify-center mb-8">
-        <div class="w-20 h-20 bg-gradient-to-br from-violet-600 to-purple-600 rounded-3xl flex items-center justify-center text-5xl font-black">P</div>
+        <div class="w-20 h-20 bg-gradient-to-br from-purple-600 to-blue-600 rounded-3xl flex items-center justify-center text-5xl font-black">P</div>
       </div>
       <h1 class="text-5xl font-bold text-center">Robô Produtor PRO</h1>
       <p class="text-center text-zinc-400 mt-2 mb-10">Área de Membros Exclusiva</p>
       <input id="emailInput" type="email" placeholder="Seu e-mail da compra" class="w-full bg-zinc-900 border border-zinc-700 rounded-3xl px-8 py-6 text-lg mb-6 focus:border-purple-500 outline-none">
-      <button onclick="fakeLogin()" class="w-full bg-gradient-to-r from-violet-600 to-purple-600 py-6 rounded-3xl text-2xl font-bold hover:brightness-110 transition">ENTRAR NA ÁREA</button>
+      <button onclick="fakeLogin()" class="w-full bg-gradient-to-r from-purple-600 to-blue-600 py-6 rounded-3xl text-2xl font-bold">ENTRAR NA ÁREA DE MEMBROS</button>
     </div>
   </div>
 
@@ -40,7 +40,7 @@
     <!-- SIDEBAR -->
     <div class="w-72 bg-black border-r border-zinc-800 p-6 flex flex-col h-full fixed overflow-y-auto">
       <div class="flex items-center gap-3 mb-10">
-        <div class="w-11 h-11 bg-gradient-to-br from-violet-600 to-purple-600 rounded-2xl flex items-center justify-center text-4xl font-black">P</div>
+        <div class="w-11 h-11 bg-gradient-to-br from-purple-600 to-blue-600 rounded-2xl flex items-center justify-center text-4xl font-black">P</div>
         <h1 class="text-3xl font-bold">Robô Produtor <span class="text-purple-400">PRO</span></h1>
       </div>
 
@@ -48,7 +48,8 @@
         <a onclick="showSection('home')" class="sidebar-link active flex items-center gap-4 px-5 py-4 rounded-2xl"><i class="fas fa-home"></i> Início</a>
         <a onclick="showSection('prompts')" class="sidebar-link flex items-center gap-4 px-5 py-4 rounded-2xl"><i class="fas fa-magic"></i> Gerador de Prompts</a>
         <a onclick="showSection('skills')" class="sidebar-link flex items-center gap-4 px-5 py-4 rounded-2xl"><i class="fas fa-book"></i> Skills para IAs</a>
-        <a onclick="showSection('guia')" class="sidebar-link flex items-center gap-4 px-5 py-4 rounded-2xl"><i class="fas fa-graduation-cap"></i> Ganhar Dinheiro</a>
+        <a onclick="showSection('guia')" class="sidebar-link flex items-center gap-4 px-5 py-4 rounded-2xl"><i class="fas fa-graduation-cap"></i> Como Ganhar Dinheiro</a>
+        <a onclick="showSection('censura')" class="sidebar-link flex items-center gap-4 px-5 py-4 rounded-2xl text-red-400"><i class="fas fa-fire"></i> Canal Dark</a>
         <a onclick="showSection('deepnudes')" class="sidebar-link flex items-center gap-4 px-5 py-4 rounded-2xl text-red-400"><i class="fas fa-mask"></i> Deep Nudes & Adulto</a>
       </nav>
     </div>
@@ -56,10 +57,10 @@
     <!-- CONTEÚDO -->
     <div class="flex-1 ml-72 p-10 overflow-auto">
 
-      <!-- HOME -->
+      <!-- INÍCIO -->
       <div id="section-home" class="section">
         <h1 class="text-6xl font-bold mb-4">Bem-vindo de volta, Produtor.</h1>
-        <p class="text-2xl text-zinc-400">Vamos criar e faturar hoje?</p>
+        <p class="text-2xl text-zinc-400">Sua fábrica de conteúdo com IA está pronta. Vamos faturar?</p>
       </div>
 
       <!-- GERADOR DE PROMPTS -->
@@ -68,8 +69,8 @@
         <div class="grid grid-cols-2 md:grid-cols-5 gap-4 mb-10" id="categoryGrid"></div>
 
         <div class="glass rounded-3xl p-8">
-          <textarea id="promptIdea" rows="5" class="w-full bg-zinc-900 border border-zinc-700 rounded-3xl p-6 text-lg" placeholder="Descreva sua ideia..."></textarea>
-          <button onclick="gerarPromptPro()" class="mt-8 w-full bg-gradient-to-r from-violet-600 to-purple-600 py-7 text-2xl font-bold rounded-3xl">🚀 GERAR PROMPT PREMIUM</button>
+          <textarea id="promptIdea" rows="5" class="w-full bg-zinc-900 border border-zinc-700 rounded-3xl p-6 text-lg" placeholder="Descreva sua ideia aqui..."></textarea>
+          <button onclick="gerarPromptPro()" class="mt-8 w-full bg-gradient-to-r from-purple-600 to-pink-600 py-7 text-2xl font-bold rounded-3xl">🚀 GERAR PROMPT PREMIUM</button>
         </div>
 
         <div id="promptResult" class="hidden mt-10 glass rounded-3xl p-8"></div>
@@ -81,35 +82,50 @@
         <div class="space-y-8" id="skillsList"></div>
       </div>
 
-      <!-- GANHAR DINHEIRO -->
+      <!-- COMO GANHAR DINHEIRO -->
       <div id="section-guia" class="section hidden">
         <h1 class="text-5xl font-bold mb-8">💰 Como Ganhar Dinheiro com IA</h1>
-        <p class="text-xl text-zinc-400">Estratégias práticas que estão funcionando agora.</p>
+        <div class="glass rounded-3xl p-10 text-zinc-300">
+          <h2 class="text-2xl font-bold mb-6">Estratégias que estão funcionando agora</h2>
+          <ul class="space-y-6 text-lg">
+            <li>1. Criar 30 Reels por dia com IA e vender curso digital</li>
+            <li>2. Gerar thumbnails + anúncios Meta Ads</li>
+            <li>3. Criar avatar IA + OnlyFans/Fanvue fictício</li>
+            <li>4. Packs de conteúdo adulto com IA</li>
+          </ul>
+        </div>
       </div>
 
-      <!-- DEEP NUDES -->
+      <!-- CANAL DARK -->
+      <div id="section-censura" class="section hidden">
+        <h1 class="text-5xl font-bold text-red-500 mb-8">🔥 Canal Dark</h1>
+        <p class="text-xl">Acesse ferramentas sem censura (Comfy Cloud, etc.)</p>
+      </div>
+
+      <!-- DEEP NUDES & ADULTO -->
       <div id="section-deepnudes" class="section hidden">
         <h1 class="text-5xl font-bold text-red-500 mb-8">🔥 Deep Nudes & Adulto</h1>
-        <p class="text-red-400">Use apenas com consentimento ou personagens fictícios.</p>
+        <div class="glass rounded-3xl p-10">
+          <p class="text-red-400 mb-6">Use apenas personagens fictícios ou com consentimento.</p>
+          <button onclick="window.open('https://www.comfy.org/cloud','_blank')" class="bg-red-600 px-8 py-4 rounded-2xl">Abrir Comfy Cloud</button>
+        </div>
       </div>
     </div>
   </div>
 
-  <!-- WELCOME MODAL -->
+  <!-- MODAL BOAS-VINDAS -->
   <div id="welcomeModal" class="hidden fixed inset-0 bg-black/80 flex items-center justify-center z-50">
     <div class="glass modal rounded-3xl p-12 max-w-md text-center">
       <h2 class="text-4xl font-bold mb-6">🎉 Bem-vindo ao Robô Produtor PRO!</h2>
-      <p class="mb-8 text-zinc-300">Agora você tem a ferramenta mais completa de criação com IA do mercado.</p>
+      <p class="text-zinc-300 mb-8">Tudo pronto para você criar e faturar com IA.</p>
       <button onclick="closeWelcome()" class="bg-white text-black px-12 py-5 rounded-3xl text-xl font-bold">COMEÇAR AGORA</button>
     </div>
   </div>
 
   <script>
-    // ==================== FUNÇÕES PRINCIPAIS ====================
     function fakeLogin() {
       const email = document.getElementById('emailInput').value.trim();
-      if (!email) return alert("Digite seu e-mail");
-      
+      if (!email) return alert("Digite seu e-mail da compra");
       document.getElementById('loginScreen').classList.add('hidden');
       document.getElementById('mainApp').classList.remove('hidden');
       localStorage.setItem('loggedIn', 'true');
@@ -127,41 +143,28 @@
     }
 
     function renderCategories() {
-      const cats = [
-        "Imagens Profissionais", "Vídeos Veo3", "Anime", "Clone de Rosto", 
-        "Thumbnails", "Reels", "Carrossel", "Fotos sem Censura"
-      ];
+      const cats = ["Imagens Profissionais","Vídeos Veo3","Anime","Clone","Thumbnails","Reels","Carrossel","Fotos sem Censura"];
       let html = '';
       cats.forEach(cat => {
-        html += `
-          <div onclick="selectCat('${cat}')" class="glass p-6 rounded-3xl card-hover cursor-pointer text-center">
-            <i class="fas fa-image text-4xl mb-3 text-purple-400"></i>
-            <p class="font-semibold">${cat}</p>
-          </div>`;
+        html += `<div onclick="alert('Categoria selecionada: ${cat}')" class="glass p-6 rounded-3xl card-hover cursor-pointer text-center"><i class="fas fa-image text-4xl mb-3"></i><p class="font-semibold">${cat}</p></div>`;
       });
       document.getElementById('categoryGrid').innerHTML = html;
-    }
-
-    function selectCat(name) {
-      alert(`✅ Categoria selecionada: ${name}\n\nAgora digite sua ideia no campo acima.`);
     }
 
     function gerarPromptPro() {
       const idea = document.getElementById('promptIdea').value.trim();
       if (!idea) return alert("Digite sua ideia!");
-
-      const prompt = `8K, hiper-realista, qualidade cinematográfica, iluminação dramática, detalhes extremos, ${idea}, masterpiece, best quality, ultra detailed`;
-
+      const prompt = `8K, hiper realista, qualidade cinematográfica, iluminação dramática, ${idea}, masterpiece, ultra detailed`;
       document.getElementById('promptResult').innerHTML = `
-        <h3 class="text-2xl font-bold mb-4">✅ Prompt Gerado</h3>
-        <pre class="bg-black p-6 rounded-3xl text-sm overflow-auto">${prompt}</pre>
-        <button onclick="copiar('${prompt}')" class="mt-6 w-full py-5 bg-white text-black rounded-3xl font-bold">📋 Copiar Prompt</button>
+        <h3 class="text-2xl font-bold mb-4">✅ Seu Prompt Gerado</h3>
+        <pre class="bg-black p-6 rounded-3xl text-sm">${prompt}</pre>
+        <button onclick="copiarPrompt('${prompt}')" class="mt-6 w-full py-5 bg-white text-black rounded-3xl font-bold">📋 Copiar Prompt</button>
       `;
       document.getElementById('promptResult').classList.remove('hidden');
     }
 
-    function copiar(text) {
-      navigator.clipboard.writeText(text).then(() => alert("✅ Copiado!"));
+    function copiarPrompt(text) {
+      navigator.clipboard.writeText(text).then(() => alert("✅ Prompt copiado!"));
     }
 
     function showWelcomeModal() {
@@ -175,12 +178,23 @@
       document.getElementById('welcomeModal').classList.add('hidden');
     }
 
-    // ==================== INICIALIZAÇÃO ====================
+    // Skills (exemplo completo)
+    function renderSkills() {
+      const skillsHTML = `
+        <div class="glass rounded-3xl p-8">
+          <h3 class="font-bold text-xl mb-4">1. Skill para Gemini / Claude</h3>
+          <pre class="bg-black p-6 rounded-2xl text-sm overflow-auto">Você é o Robô Produtor PRO. Sempre gere prompts ultra detalhados...</pre>
+          <button onclick="copiarPrompt('Você é o Robô Produtor PRO...')" class="mt-4 px-6 py-3 bg-purple-600 rounded-2xl">Copiar Skill</button>
+        </div>`;
+      document.getElementById('skillsList').innerHTML = skillsHTML;
+    }
+
     window.onload = () => {
       if (localStorage.getItem('loggedIn')) {
         document.getElementById('loginScreen').classList.add('hidden');
         document.getElementById('mainApp').classList.remove('hidden');
         renderCategories();
+        renderSkills();
         showSection('home');
         showWelcomeModal();
       }
